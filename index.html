@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0b0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="南浊工作台">
+<title>南浊 · 个人工作台<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.png" type="image/png" sizes="128x128">
+<link rel="apple-touch-icon" href="apple-icon.png" type="image/png" sizes="180x180">
+</title>
+<style>
+  :root {
+    --bg: #0a0b0f;
+    --bg-2: #12131a;
+    --glass: rgba(255,255,255,0.04);
+    --glass-border: rgba(255,255,255,0.08);
+    --glass-hover: rgba(255,255,255,0.07);
+    --card: rgba(255,255,255,0.035);
+    --border: rgba(255,255,255,0.08);
+    --text: #f0f0f5;
+    --text-dim: #7a7a8a;
+    --text-mid: #a0a0b0;
+    --accent: #6366f1;
+    --accent-light: #a78bfa;
+    --accent-glow: rgba(129,140,248,0.15);
+    --green: #34d399;
+    --orange: #fbbf24;
+    --red: #f87171;
+    --cyan: #22d3ee;
+    --pink: #f472b6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html { background: var(--bg); }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(99,102,241,0.12), transparent),
+      radial-gradient(ellipse 60% 40% at 80% 100%, rgba(167,139,250,0.06), transparent),
+      var(--bg);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* ===== Header ===== */
+  header {
+    padding: max(24px, env(safe-area-inset-top)) 28px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--glass-border), transparent);
+  }
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .header-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .header-title span { 
+    background: linear-gradient(135deg, var(--accent-light), #c4b5fd);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .header-sub {
+    color: var(--text-dim);
+    font-size: 12px;
+    margin-top: 4px;
+    letter-spacing: 0.3px;
+  }
+  .header-clock {
+    text-align: right;
+  }
+  .header-clock .time {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 1px;
+  }
+  .header-clock .date {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ===== Tabs ===== */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    padding: 8px 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    padding: 10px 16px;
+    cursor: pointer;
+    color: var(--text-dim);
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    transition: all .25s;
+    white-space: nowrap;
+    background: transparent;
+    position: relative;
+  }
+  .tab:active { background: var(--glass); }
+  .tab.active {
+    color: var(--accent-light);
+    background: var(--accent-glow);
+    border-color: rgba(129,140,248,0.2);
+  }
+  .tab-icon { margin-right: 5px; font-size: 15px; }
+
+  /* ===== Content ===== */
+  .content { padding: 16px 20px 60px; max-width: 900px; margin: 0 auto; }
+  .panel { display: none; }
+  .panel.active { display: block; animation: fadeIn .35s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ===== Glass Card ===== */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 14px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    transition: all .25s;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    pointer-events: none;
+  }
+  .card:hover { border-color: rgba(255,255,255,0.12); }
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.3px;
+  }
+
+  /* ===== Grid ===== */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  @media (max-width: 640px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    header { padding-left: 16px; padding-right: 16px; }
+    .tabs { padding-left: 12px; }
+    .content { padding-left: 14px; padding-right: 14px; }
+    .header-title { font-size: 20px; }
+    .header-clock .time { font-size: 20px; }
+  }
+
+  /* ===== Input / Button ===== */
+  input[type="text"], input[type="number"], input[type="date"], textarea, select {
+    width: 100%;
+    padding: 10px 13px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    transition: all .2s;
+    font-family: inherit;
+  }
+  input:focus, textarea:focus, select:focus { 
+    border-color: rgba(129,140,248,0.4);
+    background: rgba(0,0,0,0.4);
+  }
+  input::placeholder, textarea::placeholder { color: var(--text-dim); }
+  textarea { resize: vertical; min-height: 56px; }
+  select { appearance: none; -webkit-appearance: none; cursor: pointer; }
+  .btn {
+    padding: 10px 18px;
+    background: linear-gradient(135deg, var(--accent), #7c3aed);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all .2s;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn:hover { box-shadow: 0 0 20px rgba(99,102,241,0.3); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+  .btn-ghost {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    color: var(--text-mid);
+  }
+  .btn-ghost:hover { color: var(--text); background: var(--glass-hover); }
+  .btn-danger { background: transparent; border: 1px solid rgba(248,113,113,0.2); color: var(--red); }
+  .btn-danger:hover { background: rgba(248,113,113,0.08); border-color: rgba(248,113,113,0.4); }
+
+  /* ===== List items ===== */
+  .list-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: padding .15s;
+  }
+  .list-item:last-child { border-bottom: none; }
+  .item-check {
+    width: 20px; height: 20px;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 1px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .2s;
+  }
+  .item-check:active { transform: scale(0.9); }
+  .item-check.done {
+    background: linear-gradient(135deg, var(--green), #10b981);
+    border-color: var(--green);
+  }
+  .item-check.done::after {
+    content: '✓';
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .item-text { flex: 1; font-size: 13px; line-height: 1.55; word-break: break-word; }
+  .item-text.done { text-decoration: line-through; color: var(--text-dim); }
+  .item-delete {
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 4px;
+    opacity: 0;
+    transition: opacity .2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .list-item:hover .item-delete { opacity: 1; }
+  .item-delete:active { color: var(--red); }
+  .item-tag {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-right: 6px;
+    vertical-align: middle;
+    letter-spacing: 0.3px;
+  }
+  .tag-high { background: rgba(248,113,113,0.15); color: var(--red); }
+  .tag-mid { background: rgba(251,191,36,0.15); color: var(--orange); }
+  .tag-low { background: rgba(52,211,153,0.15); color: var(--green); }
+
+  /* ===== Progress bar ===== */
+  .progress-bar {
+    height: 4px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-light));
+    border-radius: 3px;
+    transition: width .5s ease;
+    box-shadow: 0 0 8px rgba(129,140,248,0.4);
+  }
+
+  /* ===== Hero Countdown ===== */
+  .hero-card {
+    text-align: center;
+    padding: 28px 18px;
+    background: 
+      radial-gradient(ellipse at center, rgba(99,102,241,0.12), transparent 70%),
+      var(--card);
+    border: 1px solid rgba(129,140,248,0.15);
+    border-radius: 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-card::after {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle, rgba(129,140,248,0.04), transparent 50%);
+    animation: pulse 4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+  .countdown-num {
+    font-size: 72px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #c4b5fd, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+    letter-spacing: -2px;
+    position: relative;
+    z-index: 1;
+  }
+  .countdown-label {
+    color: var(--text-dim);
+    font-size: 12px;
+    margin-top: 6px;
+    letter-spacing: 0.5px;
+    position: relative;
+    z-index: 1;
+  }
+  @media (max-width: 640px) {
+    .countdown-num { font-size: 56px; }
+  }
+
+  /* ===== Stat ===== */
+  .stat-box {
+    text-align: center;
+    padding: 14px 10px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+  .stat-num {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    letter-spacing: 0.3px;
+  }
+
+  /* ===== Code snippet ===== */
+  .code-block {
+    background: rgba(0,0,0,0.35);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    overflow-x: auto;
+    color: #a8a8b8;
+  }
+  .code-comment { color: #4a4d5a; }
+  .code-keyword { color: var(--accent-light); }
+  .code-string { color: var(--green); }
+
+  /* ===== Tag chip ===== */
+  .chip {
+    display: inline-block;
+    padding: 6px 14px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--text-mid);
+    margin: 3px;
+    cursor: pointer;
+    transition: all .2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .chip:hover, .chip:active {
+    border-color: rgba(129,140,248,0.3);
+    color: var(--accent-light);
+    background: var(--accent-glow);
+  }
+
+  /* ===== Empty state ===== */
+  .empty {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+
+  /* ===== Row ===== */
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .row > input, .row > select { flex: 1; min-width: 100px; }
+  .row > .btn, .row > .btn-ghost { flex: 0 0 auto; }
+
+  /* ===== Plan item ===== */
+  .plan-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    border: 1px solid transparent;
+    border-left: 3px solid var(--border);
+    transition: all .2s;
+  }
+  .plan-item:hover { border-left-color: var(--accent-light); border-color: var(--border); }
+  .plan-info { flex: 1; min-width: 0; }
+  .plan-name { font-size: 13px; font-weight: 500; }
+  .plan-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  /* ===== Vibe card ===== */
+  .vibe-card {
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+    transition: all .2s;
+  }
+  .vibe-card:hover { border-color: rgba(129,140,248,0.2); }
+  .vibe-title { font-size: 14px; font-weight: 600; margin-bottom: 5px; }
+  .vibe-desc { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+  .vibe-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .vibe-status {
+    padding: 2px 9px;
+    border-radius: 5px;
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.3px;
+  }
+  .status-idea { background: rgba(129,140,248,0.12); color: var(--accent-light); }
+  .status-doing { background: rgba(251,191,36,0.12); color: var(--orange); }
+  .status-done { background: rgba(52,211,153,0.12); color: var(--green); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(99,102,241,0.9);
+    backdrop-filter: blur(10px);
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 9999;
+    animation: toastIn .3s, toastOut .3s 1.5s forwards;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  @keyframes toastOut { to { opacity: 0; transform: translate(-50%, -10px); } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div>
+      <div class="header-title">南浊 · <span>个人工作台</span></div>
+      <div class="header-sub" id="header-greeting">今天也要好好加油</div>
+    </div>
+    <div class="header-clock">
+      <div class="time" id="clock">00:00:00</div>
+      <div class="date" id="date-text">2026-07-30 周四</div>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <div class="tab active" data-tab="kaoyan"><span class="tab-icon">📚</span>考研</div>
+  <div class="tab" data-tab="memo"><span class="tab-icon">📝</span>备忘</div>
+  <div class="tab" data-tab="work"><span class="tab-icon">💼</span>工作</div>
+  <div class="tab" data-tab="coding"><span class="tab-icon">💻</span>编程学习</div>
+  <div class="tab" data-tab="vibe"><span class="tab-icon">🎸</span>Vibe Coding</div>
+</nav>
+
+<div class="content">
+
+<!-- ========== 考研 ========== -->
+<div class="panel active" id="panel-kaoyan">
+  <div class="hero-card" style="margin-bottom:14px">
+    <div class="countdown-num" id="kaoyan-countdown">--</div>
+    <div class="countdown-label">距离 2026 考研（12.01）还有天数</div>
+  </div>
+  <div class="grid-2" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-title">📊 整体进度</div>
+      <div id="kaoyan-stats"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🎯 今日重点</div>
+      <div id="kaoyan-today"></div>
+      <div style="margin-top:10px">
+        <div class="row">
+          <input type="text" id="kaoyan-today-input" placeholder="添加重点...">
+          <button class="btn btn-sm" onclick="addToday('kaoyan')">+</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">📖 科目计划</div>
+      <div id="kaoyan-plans"></div>
+      <div style="margin-top:12px">
+        <div class="row">
+          <input type="text" id="kp-name" placeholder="科目名">
+          <input type="text" id="kp-target" placeholder="目标">
+          <select id="kp-priority">
+            <option value="high">高优</option>
+            <option value="mid">中优</option>
+            <option value="low">低优</option>
+          </select>
+          <button class="btn btn-sm" onclick="addPlan()">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">⏰ 每日打卡</div>
+      <div id="kaoyan-checkin"></div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="checkin('kaoyan')">今日打卡 ✅</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearCheckin('kaoyan')">重置</button>
+        <span id="kaoyan-streak" style="font-size:12px;color:var(--text-dim);align-self:center"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 备忘 ========== -->
+<div class="panel" id="panel-memo">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">📝 快速备忘</div>
+      <textarea id="memo-input" placeholder="记点什么...（Ctrl+Enter 保存）"></textarea>
+      <div class="row" style="margin-top:10px">
+        <select id="memo-priority">
+          <option value="low">普通</option>
+          <option value="mid">重要</option>
+          <option value="high">紧急</option>
+        </select>
+        <button class="btn" onclick="addMemo()">保存</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📌 置顶提醒</div>
+      <div id="memo-pinned"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">
+      📋 全部备忘
+      <span style="margin-left:auto;font-size:11px;color:var(--text-dim);font-weight:400" id="memo-count"></span>
+    </div>
+    <div id="memo-list"></div>
+  </div>
+</div>
+
+<!-- ========== 工作 ========== -->
+<div class="panel" id="panel-work">
+  <div class="grid-3" style="margin-bottom:14px">
+    <div class="stat-box"><div class="stat-num" id="work-todo-count">0</div><div class="stat-label">待办</div></div>
+    <div class="stat-box"><div class="stat-num" id="work-done-count">0</div><div class="stat-label">已完成</div></div>
+    <div class="stat-box"><div class="stat-num" id="work-rate" style="color:var(--accent-light)">0%</div><div class="stat-label">完成率</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">➕ 新增工作项</div>
+    <div class="row">
+      <input type="text" id="work-input" placeholder="工作内容...">
+      <select id="work-priority">
+        <option value="high">高优</option>
+        <option value="mid">中优</option>
+        <option value="low">低优</option>
+      </select>
+      <button class="btn" onclick="addWork()">添加</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">📋 工作清单</div>
+    <div id="work-list"></div>
+  </div>
+</div>
+
+<!-- ========== 编程学习 ========== -->
+<div class="panel" id="panel-coding">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🎯 学习路线</div>
+      <div id="coding-roadmap"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📈 学习统计</div>
+      <div class="grid-2" style="margin-bottom:12px">
+        <div class="stat-box"><div class="stat-num" id="coding-days">0</div><div class="stat-label">累计打卡</div></div>
+        <div class="stat-box"><div class="stat-num" id="coding-tasks">0</div><div class="stat-label">完成项目</div></div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px">今日学习时长</div>
+        <div class="row">
+          <input type="number" id="coding-hours" placeholder="小时" min="0" step="0.5">
+          <button class="btn btn-sm" onclick="logCoding()">记录</button>
+          <button class="btn btn-ghost btn-sm" onclick="checkin('coding')">打卡</button>
+        </div>
+        <div id="coding-streak" style="margin-top:8px;font-size:12px;color:var(--text-dim)"></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">💡 知识卡片</div>
+    <div class="code-block">
+<span class="code-comment"># Python 三个要点</span>
+<span class="code-keyword">变量</span>     → name = "南浊"        <span class="code-comment"># 存数据</span>
+<span class="code-keyword">条件</span>     → <span class="code-keyword">if</span> score >= 60: <span class="code-keyword">print</span>(<span class="code-string">"过了"</span>)
+<span class="code-keyword">循环</span>     → <span class="code-keyword">for</span> i <span class="code-keyword">in</span> range(10): <span class="code-keyword">print</span>(i)
+
+<span class="code-comment"># SQL 四件套</span>
+<span class="code-keyword">SELECT</span> * <span class="code-keyword">FROM</span> users  <span class="code-comment">-- 查</span>
+<span class="code-keyword">INSERT</span> <span class="code-keyword">INTO</span> users ... <span class="code-comment">-- 增</span>
+<span class="code-keyword">UPDATE</span> users <span class="code-keyword">SET</span> ...   <span class="code-comment">-- 改</span>
+<span class="code-keyword">DELETE</span> <span class="code-keyword">FROM</span> users ...   <span class="code-comment">-- 删</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">✅ 学习任务清单</div>
+    <div id="coding-tasks-list"></div>
+    <div class="row" style="margin-top:10px">
+      <input type="text" id="coding-task-input" placeholder="添加学习任务...">
+      <button class="btn btn-sm" onclick="addCodingTask()">+</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Vibe Coding ========== -->
+<div class="panel" id="panel-vibe">
+  <div class="card">
+    <div class="card-title">🎸 Vibe Coding Projects</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.6">
+      跟着感觉走，不纠结架构，先做出来再说。
+    </div>
+    <div class="row" style="margin-bottom:12px">
+      <input type="text" id="vibe-name" placeholder="项目名">
+      <input type="text" id="vibe-desc" placeholder="一句话描述">
+      <select id="vibe-status">
+        <option value="idea">💡 灵感</option>
+        <option value="doing">🔥 在做</option>
+        <option value="done">✅ 完成</option>
+      </select>
+      <button class="btn" onclick="addVibe()">+</button>
+    </div>
+    <div id="vibe-list"></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🛠 常用工具</div>
+      <div>
+        <span class="chip" onclick="window.open('https://chat.openai.com')">ChatGPT</span>
+        <span class="chip" onclick="window.open('https://claude.ai')">Claude</span>
+        <span class="chip" onclick="window.open('https://v0.dev')">v0.dev</span>
+        <span class="chip" onclick="window.open('https://bolt.new')">Bolt.new</span>
+        <span class="chip" onclick="window.open('https://replit.com')">Replit</span>
+        <span class="chip" onclick="window.open('https://github.com')">GitHub</span>
+        <span class="chip" onclick="window.open('https://stackoverflow.com')">StackOverflow</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📝 Vibe 笔记</div>
+      <textarea id="vibe-notes" placeholder="随手记灵感、代码片段..." style="min-height:100px"></textarea>
+      <button class="btn btn-sm" style="margin-top:8px" onclick="saveVibeNotes()">保存</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ====== Storage ======
+const DB = {
+  get(key, def) {
+    try { return JSON.parse(localStorage.getItem('nz_'+key)) || def; }
+    catch { return def; }
+  },
+  set(key, val) { localStorage.setItem('nz_'+key, JSON.stringify(val)); }
+};
+
+// ====== Toast ======
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2000);
+}
+
+// ====== Clock ======
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  const s = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clock').textContent = `${h}:${m}:${s}`;
+  const days = ['日','一','二','三','四','五','六'];
+  document.getElementById('date-text').textContent =
+    `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} 周${days[now.getDay()]}`;
+  const hr = now.getHours();
+  let greeting = '今天也要好好加油';
+  if (hr < 6) greeting = '夜深了，注意休息';
+  else if (hr < 9) greeting = '早安，新的一天开始了';
+  else if (hr < 12) greeting = '上午好，专注力最好的时段';
+  else if (hr < 14) greeting = '午饭后，稍微走走再开工';
+  else if (hr < 18) greeting = '下午好，继续推进';
+  else if (hr < 22) greeting = '晚上好，收尾今天的事';
+  else greeting = '别熬太晚';
+  document.getElementById('header-greeting').textContent = greeting;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ====== Tabs ======
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('panel-'+t.dataset.tab).classList.add('active');
+  });
+});
+
+// ====== Countdown ======
+function updateCountdown() {
+  const target = new Date('2026-12-01');
+  const now = new Date();
+  const days = Math.ceil((target - now) / 86400000);
+  document.getElementById('kaoyan-countdown').textContent = days > 0 ? days : '--';
+}
+updateCountdown();
+
+// ====== Today list (shared) ======
+function getTodayList(key) { return DB.get(key+'_today', []); }
+function setTodayList(key, list) { DB.set(key+'_today', list); }
+function addToday(key) {
+  const input = document.getElementById(key+'-today-input');
+  const val = input.value.trim();
+  if (!val) return;
+  const list = getTodayList(key);
+  list.push({ text: val, done: false });
+  setTodayList(key, list);
+  input.value = '';
+  renderToday(key);
+}
+function toggleToday(key, i) {
+  const list = getTodayList(key);
+  list[i].done = !list[i].done;
+  setTodayList(key, list);
+  renderToday(key);
+}
+function delToday(key, i) {
+  const list = getTodayList(key);
+  list.splice(i, 1);
+  setTodayList(key, list);
+  renderToday(key);
+}
+function renderToday(key) {
+  const list = getTodayList(key);
+  const container = document.getElementById(key+'-today');
+  if (!list.length) { container.innerHTML = '<div class="empty">暂无，点 + 添加</div>'; return; }
+  container.innerHTML = list.map((item, i) => `
+    <div class="list-item">
+      <div class="item-check ${item.done?'done':''}" onclick="toggleToday('${key}',${i})"></div>
+      <div class="item-text ${item.done?'done':''}">${esc(item.text)}</div>
+      <span class="item-delete" onclick="delToday('${key}',${i})">×</span>
+    </div>
+  `).join('');
+}
+
+// ====== Plans (kaoyan) ======
+function getPlans() { return DB.get('plans', []); }
+function setPlans(p) { DB.set('plans', p); }
+function addPlan() {
+  const name = document.getElementById('kp-name').value.trim();
+  const target = document.getElementById('kp-target').value.trim();
+  const priority = document.getElementById('kp-priority').value;
+  if (!name) return;
+  const plans = getPlans();
+  plans.push({ name, target, priority, progress: 0 });
+  setPlans(plans);
+  document.getElementById('kp-name').value = '';
+  document.getElementById('kp-target').value = '';
+  renderPlans();
+  renderKaoyanStats();
+}
+function updateProgress(i, delta) {
+  const plans = getPlans();
+  plans[i].progress = Math.max(0, Math.min(100, plans[i].progress + delta));
+  setPlans(plans);
+  renderPlans();
+  renderKaoyanStats();
+}
+function delPlan(i) {
+  const plans = getPlans();
+  plans.splice(i, 1);
+  setPlans(plans);
+  renderPlans();
+  renderKaoyanStats();
+}
+function renderPlans() {
+  const plans = getPlans();
+  const container = document.getElementById('kaoyan-plans');
+  if (!plans.length) { container.innerHTML = '<div class="empty">先添加科目计划吧</div>'; return; }
+  const tagMap = { high: '<span class="item-tag tag-high">高优</span>', mid: '<span class="item-tag tag-mid">中优</span>', low: '<span class="item-tag tag-low">低优</span>' };
+  container.innerHTML = plans.map((p, i) => `
+    <div class="plan-item">
+      <div class="plan-info">
+        <div class="plan-name">${tagMap[p.priority]||''}${esc(p.name)}</div>
+        <div class="plan-meta">${esc(p.target||'无目标')} · 进度 ${p.progress}%</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${p.progress}%"></div></div>
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button class="btn btn-ghost btn-sm" onclick="updateProgress(${i},-10)">−</button>
+        <button class="btn btn-ghost btn-sm" onclick="updateProgress(${i},10)">+</button>
+        <button class="btn btn-danger btn-sm" onclick="delPlan(${i})">删</button>
+      </div>
+    </div>
+  `).join('');
+}
+function renderKaoyanStats() {
+  const plans = getPlans();
+  const container = document.getElementById('kaoyan-stats');
+  if (!plans.length) { container.innerHTML = '<div class="empty">暂无数据</div>'; return; }
+  const avg = Math.round(plans.reduce((s,p) => s + p.progress, 0) / plans.length);
+  const highCount = plans.filter(p => p.priority === 'high').length;
+  container.innerHTML = `
+    <div class="stat-box" style="margin-bottom:8px">
+      <div class="stat-num" style="color:var(--accent-light)">${avg}%</div>
+      <div class="stat-label">综合进度</div>
+    </div>
+    <div style="font-size:11px;color:var(--text-dim);text-align:center">
+      共 ${plans.length} 个科目 · ${highCount} 个高优
+    </div>
+    <div class="progress-bar" style="margin-top:10px"><div class="progress-fill" style="width:${avg}%"></div></div>
+  `;
+}
+
+// ====== Checkin ======
+function getCheckin(key) { return DB.get(key+'_checkin', { dates: [], streak: 0, lastDate: '' }); }
+function setCheckin(key, data) { DB.set(key+'_checkin', data); }
+function checkin(key) {
+  const data = getCheckin(key);
+  const today = new Date().toISOString().slice(0,10);
+  if (data.dates.includes(today)) { toast('今天已经打过卡了'); return; }
+  data.dates.push(today);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+  if (data.lastDate === yesterday) data.streak += 1;
+  else data.streak = 1;
+  data.lastDate = today;
+  setCheckin(key, data);
+  renderCheckin(key);
+  toast(`✅ 打卡成功！连续 ${data.streak} 天`);
+}
+function clearCheckin(key) {
+  setCheckin(key, { dates: [], streak: 0, lastDate: '' });
+  renderCheckin(key);
+}
+function renderCheckin(key) {
+  const data = getCheckin(key);
+  const container = document.getElementById(key+'-checkin');
+  const today = new Date().toISOString().slice(0,10);
+  const checkedToday = data.dates.includes(today);
+  let html = '<div style="display:flex;gap:5px;margin-bottom:10px;justify-content:center">';
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000).toISOString().slice(0,10);
+    const has = data.dates.includes(d);
+    const isToday = d === today;
+    html += `<div style="
+      width:30px;height:30px;border-radius:8px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:11px;font-weight:600;
+      background:${has?'linear-gradient(135deg,var(--accent),#7c3aed)':'rgba(0,0,0,0.3)'};
+      color:${has?'#fff':'var(--text-dim)'};
+      border:${isToday?'1.5px solid var(--accent-light)':'1px solid var(--border)'};
+    ">${new Date(d).getDate()}</div>`;
+  }
+  html += '</div>';
+  html += `<div style="font-size:12px;color:var(--text-dim);text-align:center">
+    ${checkedToday ? '✅ 今日已打卡' : '⏳ 今日未打卡'} · 连续 <b style="color:var(--accent-light)">${data.streak}</b> 天
+  </div>`;
+  container.innerHTML = html;
+  const streakEl = document.getElementById(key+'-streak');
+  if (streakEl) streakEl.textContent = `连续 ${data.streak} 天`;
+}
+
+// ====== Memo ======
+function getMemos() { return DB.get('memos', []); }
+function setMemos(m) { DB.set('memos', m); }
+function addMemo() {
+  const text = document.getElementById('memo-input').value.trim();
+  const priority = document.getElementById('memo-priority').value;
+  if (!text) return;
+  const memos = getMemos();
+  memos.unshift({ text, priority, pinned: false, time: Date.now() });
+  setMemos(memos);
+  document.getElementById('memo-input').value = '';
+  renderMemos();
+  toast('已保存');
+}
+function pinMemo(i) {
+  const memos = getMemos();
+  memos[i].pinned = !memos[i].pinned;
+  setMemos(memos);
+  renderMemos();
+}
+function delMemo(i) {
+  const memos = getMemos();
+  memos.splice(i, 1);
+  setMemos(memos);
+  renderMemos();
+}
+function renderMemos() {
+  const memos = getMemos();
+  const tagMap = { high: '<span class="item-tag tag-high">紧急</span>', mid: '<span class="item-tag tag-mid">重要</span>', low: '<span class="item-tag tag-low">普通</span>' };
+  const pinned = memos.filter(m => m.pinned);
+  const pContainer = document.getElementById('memo-pinned');
+  if (!pinned.length) pContainer.innerHTML = '<div class="empty">点击右侧📌置顶</div>';
+  else pContainer.innerHTML = pinned.map(m => {
+    const idx = memos.indexOf(m);
+    return `<div class="list-item">
+      <div class="item-text">${tagMap[m.priority]||''}${esc(m.text)}</div>
+      <span class="item-delete" onclick="pinMemo(${idx})" style="opacity:1">📌</span>
+    </div>`;
+  }).join('');
+  const container = document.getElementById('memo-list');
+  document.getElementById('memo-count').textContent = `共 ${memos.length} 条`;
+  if (!memos.length) { container.innerHTML = '<div class="empty">还没有备忘，记一条？</div>'; return; }
+  container.innerHTML = memos.map((m, i) => `
+    <div class="list-item">
+      <div class="item-text">${tagMap[m.priority]||''}${esc(m.text)}
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px">${timeAgo(m.time)}</div>
+      </div>
+      <span class="item-delete" onclick="pinMemo(${i})" style="opacity:${m.pinned?'1':'0.3'}">📌</span>
+      <span class="item-delete" onclick="delMemo(${i})">×</span>
+    </div>
+  `).join('');
+}
+
+// ====== Work ======
+function getWork() { return DB.get('work', []); }
+function setWork(w) { DB.set('work', w); }
+function addWork() {
+  const text = document.getElementById('work-input').value.trim();
+  const priority = document.getElementById('work-priority').value;
+  if (!text) return;
+  const work = getWork();
+  work.unshift({ text, priority, done: false, time: Date.now() });
+  setWork(work);
+  document.getElementById('work-input').value = '';
+  renderWork();
+}
+function toggleWork(i) {
+  const work = getWork();
+  work[i].done = !work[i].done;
+  setWork(work);
+  renderWork();
+}
+function delWork(i) {
+  const work = getWork();
+  work.splice(i, 1);
+  setWork(work);
+  renderWork();
+}
+function renderWork() {
+  const work = getWork();
+  const tagMap = { high: '<span class="item-tag tag-high">高优</span>', mid: '<span class="item-tag tag-mid">中优</span>', low: '<span class="item-tag tag-low">低优</span>' };
+  const todo = work.filter(w => !w.done).length;
+  const done = work.filter(w => w.done).length;
+  const rate = work.length ? Math.round(done / work.length * 100) : 0;
+  document.getElementById('work-todo-count').textContent = todo;
+  document.getElementById('work-done-count').textContent = done;
+  document.getElementById('work-rate').textContent = rate + '%';
+  const container = document.getElementById('work-list');
+  if (!work.length) { container.innerHTML = '<div class="empty">暂无工作项</div>'; return; }
+  container.innerHTML = work.map((w, i) => `
+    <div class="list-item">
+      <div class="item-check ${w.done?'done':''}" onclick="toggleWork(${i})"></div>
+      <div class="item-text ${w.done?'done':''}">${tagMap[w.priority]||''}${esc(w.text)}
+        <span style="font-size:10px;color:var(--text-dim);margin-left:6px">${timeAgo(w.time)}</span>
+      </div>
+      <span class="item-delete" onclick="delWork(${i})">×</span>
+    </div>
+  `).join('');
+}
+
+// ====== Coding ======
+function getCodingTasks() { return DB.get('coding_tasks', []); }
+function setCodingTasks(t) { DB.set('coding_tasks', t); }
+function addCodingTask() {
+  const text = document.getElementById('coding-task-input').value.trim();
+  if (!text) return;
+  const tasks = getCodingTasks();
+  tasks.unshift({ text, done: false, time: Date.now() });
+  setCodingTasks(tasks);
+  document.getElementById('coding-task-input').value = '';
+  renderCodingTasks();
+}
+function toggleCodingTask(i) {
+  const tasks = getCodingTasks();
+  tasks[i].done = !tasks[i].done;
+  setCodingTasks(tasks);
+  renderCodingTasks();
+}
+function delCodingTask(i) {
+  const tasks = getCodingTasks();
+  tasks.splice(i, 1);
+  setCodingTasks(tasks);
+  renderCodingTasks();
+}
+function renderCodingTasks() {
+  const tasks = getCodingTasks();
+  const container = document.getElementById('coding-tasks-list');
+  if (!tasks.length) { container.innerHTML = '<div class="empty">添加一个学习任务吧</div>'; return; }
+  container.innerHTML = tasks.map((t, i) => `
+    <div class="list-item">
+      <div class="item-check ${t.done?'done':''}" onclick="toggleCodingTask(${i})"></div>
+      <div class="item-text ${t.done?'done':''}">${esc(t.text)}</div>
+      <span class="item-delete" onclick="delCodingTask(${i})">×</span>
+    </div>
+  `).join('');
+  document.getElementById('coding-tasks').textContent = tasks.filter(t => t.done).length;
+}
+
+function logCoding() {
+  const hours = parseFloat(document.getElementById('coding-hours').value);
+  if (!hours || hours < 0) return;
+  const today = new Date().toISOString().slice(0,10);
+  let logs = DB.get('coding_logs', {});
+  logs[today] = (logs[today] || 0) + hours;
+  DB.set('coding_logs', logs);
+  document.getElementById('coding-hours').value = '';
+  toast(`记录成功！今日 ${logs[today].toFixed(1)}h`);
+  renderCodingStats();
+}
+function renderCodingStats() {
+  const checkinData = getCheckin('coding');
+  document.getElementById('coding-days').textContent = checkinData.dates.length;
+  const streakEl = document.getElementById('coding-streak');
+  if (streakEl) streakEl.textContent = `连续 ${checkinData.streak} 天`;
+}
+
+// ====== Roadmap ======
+const defaultRoadmap = [
+  { stage: '基础', items: ['Python 语法基础', '数据类型与变量', '条件判断与循环', '函数与模块'] },
+  { stage: '进阶', items: ['面向对象编程', '文件操作', '异常处理', '常用标准库'] },
+  { stage: '应用', items: ['数据处理 (pandas)', '网络请求 (requests)', '简单爬虫', '小项目实战'] },
+  { stage: 'AI 方向', items: ['SQL 基础', 'AI 概念入门', '调用大模型 API', 'Agent 开发入门'] },
+];
+function renderRoadmap() {
+  const container = document.getElementById('coding-roadmap');
+  container.innerHTML = defaultRoadmap.map(stage => `
+    <div style="margin-bottom:12px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:5px;color:var(--accent-light)">${stage.stage}</div>
+      ${stage.items.map(item => `<div style="font-size:12px;color:var(--text-dim);padding:2px 0 2px 10px;border-left:2px solid var(--border)">${item}</div>`).join('')}
+    </div>
+  `).join('');
+}
+
+// ====== Vibe ======
+function getVibes() { return DB.get('vibes', []); }
+function setVibes(v) { DB.set('vibes', v); }
+function addVibe() {
+  const name = document.getElementById('vibe-name').value.trim();
+  const desc = document.getElementById('vibe-desc').value.trim();
+  const status = document.getElementById('vibe-status').value;
+  if (!name) return;
+  const vibes = getVibes();
+  vibes.unshift({ name, desc, status, time: Date.now() });
+  setVibes(vibes);
+  document.getElementById('vibe-name').value = '';
+  document.getElementById('vibe-desc').value = '';
+  renderVibes();
+}
+function updateVibeStatus(i, status) {
+  const vibes = getVibes();
+  vibes[i].status = status;
+  setVibes(vibes);
+  renderVibes();
+}
+function delVibe(i) {
+  const vibes = getVibes();
+  vibes.splice(i, 1);
+  setVibes(vibes);
+  renderVibes();
+}
+function renderVibes() {
+  const vibes = getVibes();
+  const container = document.getElementById('vibe-list');
+  if (!vibes.length) { container.innerHTML = '<div class="empty">还没有项目，加一个灵感？</div>'; return; }
+  const statusMap = { idea: ['💡 灵感','status-idea'], doing: ['🔥 在做','status-doing'], done: ['✅ 完成','status-done'] };
+  container.innerHTML = vibes.map((v, i) => `
+    <div class="vibe-card">
+      <div class="vibe-title">${esc(v.name)}</div>
+      <div class="vibe-desc">${esc(v.desc||'暂无描述')}</div>
+      <div class="vibe-meta">
+        <span class="vibe-status ${statusMap[v.status][1]}">${statusMap[v.status][0]}</span>
+        <span>${timeAgo(v.time)}</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <select onchange="updateVibeStatus(${i}, this.value)" style="flex:1;font-size:11px;padding:4px 8px">
+          <option value="idea" ${v.status==='idea'?'selected':''}>💡 灵感</option>
+          <option value="doing" ${v.status==='doing'?'selected':''}>🔥 在做</option>
+          <option value="done" ${v.status==='done'?'selected':''}>✅ 完成</option>
+        </select>
+        <button class="btn btn-danger btn-sm" onclick="delVibe(${i})">删</button>
+      </div>
+    </div>
+  `).join('');
+}
+function saveVibeNotes() {
+  const notes = document.getElementById('vibe-notes').value;
+  DB.set('vibe_notes', notes);
+  toast('笔记已保存');
+}
+function loadVibeNotes() {
+  document.getElementById('vibe-notes').value = DB.get('vibe_notes', '');
+}
+
+// ====== Utils ======
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+function timeAgo(ts) {
+  const diff = Date.now() - ts;
+  if (diff < 60000) return '刚刚';
+  if (diff < 3600000) return Math.floor(diff/60000) + '分钟前';
+  if (diff < 86400000) return Math.floor(diff/3600000) + '小时前';
+  return Math.floor(diff/86400000) + '天前';
+}
+
+// Ctrl+Enter to save memo
+document.getElementById('memo-input').addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') addMemo();
+});
+
+// Enter key to submit various inputs
+['kaoyan-today-input','kp-name','kp-target','work-input','coding-task-input','vibe-name','vibe-desc'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const btn = el.closest('.card').querySelector('.btn');
+      if (btn) btn.click();
+    }
+  });
+});
+
+// ====== Init ======
+renderToday('kaoyan');
+renderPlans();
+renderKaoyanStats();
+renderCheckin('kaoyan');
+renderMemos();
+renderWork();
+renderCodingTasks();
+renderCodingStats();
+renderRoadmap();
+renderVibes();
+loadVibeNotes();
+</script>
+</body>
+</html>
