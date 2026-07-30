@@ -962,6 +962,16 @@ function delMemo(i) {
   setMemos(memos);
   renderMemos();
 }
+function editMemo(i) {
+  const memos = getMemos();
+  const m = memos[i];
+  const text = prompt('编辑备忘：', m.text);
+  if (text !== null && text.trim()) {
+    memos[i].text = text.trim();
+    setMemos(memos);
+    renderMemos();
+  }
+}
 function renderMemos() {
   const memos = getMemos();
   const tagMap = { high: '<span class="item-tag tag-high">紧急</span>', mid: '<span class="item-tag tag-mid">重要</span>', low: '<span class="item-tag tag-low">普通</span>' };
@@ -984,7 +994,7 @@ function renderMemos() {
         <div style="font-size:10px;color:var(--text-dim);margin-top:2px">${timeAgo(m.time)}</div>
       </div>
       <span class="item-delete" onclick="pinMemo(${i})" style="opacity:${m.pinned?'1':'0.3'}">📌</span>
-      <span class="item-delete" onclick="delMemo(${i})">×</span>
+      <span class="item-edit" onclick="editMemo(${i})" style="cursor:pointer;margin-right:8px;opacity:0.6">✎</span>\n      <span class="item-delete" onclick="delMemo(${i})">×</span>
     </div>
   `).join('');
 }
