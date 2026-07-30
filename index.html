@@ -519,6 +519,12 @@
   .kb-action { cursor: pointer; font-size: 12px; opacity: 0.6; }
   .kb-action:hover { opacity: 1; }
 
+
+  /* Select dropdown styling */
+  select { background-color: #1a1d27 !important; color: var(--text) !important; }
+  select option { background-color: #1a1d27; color: var(--text); padding: 4px 8px; }
+  select:focus { outline: none; border-color: var(--accent) !important; }
+
 </style>
 </head>
 <body>
@@ -752,7 +758,7 @@
       </div>
       <div style="display:flex;gap:8px;margin-top:8px">
         <input id="api-key-input" type="password" placeholder="输入 API Key" 
-          style="flex:1;background:var(--glass);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:14px" 
+          style="flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:14px" 
           onblur="saveApiKey()">
         <button class="btn" onclick="saveApiKey()" style="white-space:nowrap">保存</button>
       </div>
@@ -774,19 +780,19 @@
         <div id="chat-messages" style="flex:1;overflow-y:auto;max-height:400px;padding:8px 0"></div>
         <div style="display:flex;gap:8px;margin-top:8px">
           <input id="chat-input" type="text" placeholder="问点什么..." 
-            style="flex:1;background:var(--glass);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:14px"
+            style="flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:14px"
             onkeydown="if(event.key==='Enter')sendChat()">
           <button class="btn" onclick="sendChat()" style="white-space:nowrap">发送</button>
         </div>
         <div style="display:flex;gap:8px;margin-top:8px">
           <button class="btn" onclick="clearChat()" style="font-size:12px;padding:4px 10px">清空对话</button>
-          <select id="provider-select" style="background:var(--glass);border:1px solid var(--border);border-radius:8px;padding:4px 8px;color:var(--text);font-size:12px" onchange="onProviderChange()">
+          <select id="provider-select" style="background:#1a1d27;border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:13px;cursor:pointer" onchange="onProviderChange()">
             <option value="zhipu">智谱GLM</option>
             <option value="deepseek">DeepSeek</option>
             <option value="mimo">小米MiMo</option>
             <option value="volcano">火山引擎</option>
           </select>
-          <select id="model-select" style="background:var(--glass);border:1px solid var(--border);border-radius:8px;padding:4px 8px;color:var(--text);font-size:12px"></select>
+          <select id="model-select" style="background:#1a1d27;border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:13px;cursor:pointer"></select>
         </div>
       </div>
 
@@ -797,11 +803,11 @@
         <!-- Add form -->
         <div style="margin-bottom:12px">
           <input id="kb-title" type="text" placeholder="标题（如：梯度下降原理）" 
-            style="width:100%;background:var(--glass);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:14px;margin-bottom:8px">
+            style="width:100%;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:14px;margin-bottom:8px">
           <textarea id="kb-content" placeholder="内容（知识点、笔记、代码片段...）" 
-            style="width:100%;background:var(--glass);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:14px;min-height:80px;margin-bottom:8px;resize:vertical;font-family:inherit"></textarea>
+            style="width:100%;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:14px;min-height:80px;margin-bottom:8px;resize:vertical;font-family:inherit"></textarea>
           <div style="display:flex;gap:8px">
-            <select id="kb-category" style="background:var(--glass);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:14px;flex:1">
+            <select id="kb-category" style="background:#1a1d27;border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:14px;flex:1;cursor:pointer">
               <option value="考研">📚 考研</option>
               <option value="编程">💻 编程</option>
               <option value="工作">💼 工作</option>
@@ -816,7 +822,7 @@
           <input id="kb-search" type="text" placeholder="🔍 搜索..." 
             style="flex:1;background:var(--glass);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text);font-size:13px"
             oninput="renderKnowledge()">
-          <select id="kb-filter-cat" style="background:var(--glass);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:13px"
+          <select id="kb-filter-cat" style="background:#1a1d27;border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:13px;cursor:pointer"
             onchange="renderKnowledge()">
             <option value="">全部</option>
             <option value="考研">考研</option>
