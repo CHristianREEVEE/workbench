@@ -1,11 +1,11 @@
 {
   "name": "南浊 · 个人工作台",
   "short_name": "工作台",
-  "description": "考研 · 备忘 · 工作 · 编程学习 · Vibe Coding",
+  "description": "每日打卡 · 学习任务 · 番茄计时 · 复盘 · 备忘",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0a0b0f",
-  "theme_color": "#0a0b0f",
+  "background_color": "#1a1721",
+  "theme_color": "#1a1721",
   "icons": [
     {"src": "icon.png", "sizes": "128x128", "type": "image/png"},
     {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
