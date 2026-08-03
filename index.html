@@ -393,11 +393,10 @@
     border-radius: 16px;
     padding: 24px;
     z-index: 1500;
-    display: none;
     text-align: center;
     max-width: 300px;
   }
-  .confirm-modal.show { display: block; }
+  .modal-overlay:not(.show) .confirm-modal { display: none; }
   .confirm-modal .confirm-text { margin-bottom: 20px; font-size: 15px; }
   .confirm-modal .confirm-btns { display: flex; gap: 10px; justify-content: center; }
   /* ===== Result Modal ===== */
