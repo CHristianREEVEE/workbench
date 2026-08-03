@@ -151,7 +151,7 @@
     margin: 10px 0;
     letter-spacing: 3px;
   }
-  .timer-display.running { color: var(--green); animation: pulse 2s infinite; }
+  .timer-display.running { color: var(--green); }
   @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
   .timer-btns { display: flex; gap: 10px; justify-content: center; }
   /* ===== Module 3 & 4: Checklist ===== */
@@ -206,6 +206,42 @@
     color: var(--accent-light);
     font-weight: 600;
     flex-shrink: 0;
+  }
+  .checklist-item .item-count {
+    font-size: 11px;
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.06);
+    padding: 2px 8px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    min-width: 28px;
+    text-align: center;
+  }
+  .checklist-item.done .item-count {
+    color: var(--green);
+    background: rgba(74,222,128,0.12);
+  }
+  /* Math progress bar */
+  .math-progress-bar {
+    width: 100%;
+    height: 8px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+  .math-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #a78bfa, #fbbf24);
+    border-radius: 4px;
+    transition: width .4s ease;
+  }
+  .math-progress-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    display: flex;
+    justify-content: space-between;
   }
   .sub-item { margin-left: 20px; }
   .section-label {
@@ -700,13 +736,14 @@ function updateTimerCount() {
 }
 
 // ====== Module 4: Study Tasks ======
+const MATH_TOTAL = 76;
 const taskGroups = [
   {
     label: '考研',
     icon: '📖',
     items: [
       { cat: '英二闪背单词', time: '10页/天', desc: '' },
-      { cat: '数学', time: '1考点/天', desc: '' },
+      { cat: '数学', time: '1考点/天', desc: '', isMath: true },
     ]
   },
   {
@@ -731,8 +768,11 @@ const taskGroups = [
 const tasks = taskGroups.flatMap(g => g.items.map(t => ({...t, group: g.label})));
 function getTasksDone() { return DB.get('tasks_' + today(), []); }
 function setTasksDone(done) { DB.set('tasks_' + today(), done); }
+function getTaskCounts() { return DB.get('task_counts', {}); }
+function setTaskCounts(counts) { DB.set('task_counts', counts); }
 function renderTasks() {
   const done = getTasksDone();
+  const counts = getTaskCounts();
   const list = document.getElementById('tasks-list');
   let html = '';
   let idx = 0;
@@ -740,12 +780,28 @@ function renderTasks() {
     html += `<div class="task-group-label">${g.icon} ${g.label}</div>`;
     g.items.forEach(t => {
       const isDone = done.includes(idx);
-      html += `
-        <div class="checklist-item ${isDone ? 'done' : ''}" onclick="toggleTask(${idx})">
-          <div class="checkbox ${isDone ? 'checked' : ''}">${isDone ? '✓' : ''}</div>
-          <span class="item-text"><b>${t.cat}</b>${t.desc ? ' — ' + t.desc : ''}</span>
-          <span class="item-time">${t.time}</span>
-        </div>`;
+      const count = counts[idx] || 0;
+      if (t.isMath) {
+        const pct = Math.round(count / MATH_TOTAL * 100);
+        html += `
+          <div class="checklist-item ${isDone ? 'done' : ''}" onclick="toggleTask(${idx})" style="flex-wrap:wrap">
+            <div class="checkbox ${isDone ? 'checked' : ''}">${isDone ? '✓' : ''}</div>
+            <span class="item-text"><b>${t.cat}</b></span>
+            <span class="item-count">${count}/${MATH_TOTAL}</span>
+            <div style="width:100%">
+              <div class="math-progress-bar"><div class="math-progress-fill" style="width:${pct}%"></div></div>
+              <div class="math-progress-label"><span>已学 ${count} 个考点</span><span>${pct}%</span></div>
+            </div>
+          </div>`;
+      } else {
+        html += `
+          <div class="checklist-item ${isDone ? 'done' : ''}" onclick="toggleTask(${idx})">
+            <div class="checkbox ${isDone ? 'checked' : ''}">${isDone ? '✓' : ''}</div>
+            <span class="item-text"><b>${t.cat}</b>${t.desc ? ' — ' + t.desc : ''}</span>
+            <span class="item-count">${count}次</span>
+            <span class="item-time">${t.time}</span>
+          </div>`;
+      }
       idx++;
     });
   });
@@ -753,13 +809,17 @@ function renderTasks() {
 }
 function toggleTask(i) {
   let done = getTasksDone();
+  let counts = getTaskCounts();
   if (done.includes(i)) {
     done = done.filter(x => x !== i);
+    counts[i] = Math.max(0, (counts[i] || 0) - 1);
   } else {
     done.push(i);
+    counts[i] = (counts[i] || 0) + 1;
     toast('已完成 ✅', 'success');
   }
   setTasksDone(done);
+  setTaskCounts(counts);
   renderTasks();
 }
 
