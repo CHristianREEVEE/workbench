@@ -718,11 +718,13 @@ function stopTimer() {
   timerRunning = false;
   clearInterval(timerInterval);
   const elapsed = Math.floor((Date.now() - timerStart) / 1000);
-  if (elapsed >= 1) {
+  if (elapsed >= 60) {
     const segs = getTodaySegments();
     segs.push({ start: timerStart, end: Date.now(), duration: elapsed });
     saveTodaySegments(segs);
     toast(`本次学习 ${fmtMin(elapsed)}，已保存✅`, 'success');
+  } else {
+    toast(`本次仅 ${elapsed} 秒，未满1分钟不计入记录`, 'warn');
   }
   document.getElementById('timer-start').disabled = false;
   document.getElementById('timer-stop').disabled = true;
@@ -1143,7 +1145,7 @@ function checkTimeHint() {
   const totalMin = h * 60 + m;
   // 12:00-14:00 lunch break
   if (totalMin >= 720 && totalMin < 840) {
-    setTimeout(() => toast('该休息啦，辛苦一天了 ❤️', 'warn'), 500);
+    setTimeout(() => toast('该吃午饭啦，休息一下 🍚', 'warn'), 500);
   }
   // 22:00-8:00 night rest
   if (totalMin >= 1320 || totalMin < 480) {
