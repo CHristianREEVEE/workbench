@@ -485,7 +485,11 @@
   <div class="main-title">南浊 · 个人工作台</div>
   <div class="rule-bar">
     <span class="dot"></span>
-    <span id="rule-text">每天进步一点点 · 坚持就是胜利</span>
+    <span id="rule-text">天行健，君子以自强不息</span>
+  </div>
+  <div class="rule-bar" style="margin-top:2px">
+    <span class="dot" style="background:var(--accent)"></span>
+    <span style="color:var(--accent-light);font-size:11px">大道五十，天衍四九，人遁其一</span>
   </div>
 </header>
 
@@ -495,6 +499,7 @@
   <div class="tab" data-tab="study" onclick="switchTab('study')">📋 学习</div>
   <div class="tab" data-tab="memo" onclick="switchTab('memo')">📝 备忘</div>
   <div class="tab" data-tab="rest" onclick="switchTab('rest')">🎰 休息</div>
+  <div class="tab" onclick="location.href='admin.html'" style="color:var(--text-dim)">⚙️ 后台</div>
 </nav>
 <div class="panel active" id="panel-home">
   <!-- 模块1：打卡&数据总览 -->
@@ -744,6 +749,8 @@ const taskGroups = [
     items: [
       { cat: '英二闪背单词', time: '10页/天', desc: '' },
       { cat: '数学', time: '1考点/天', desc: '', isMath: true },
+      { cat: '逻辑', time: '每日', desc: '' },
+      { cat: '写作', time: '每日', desc: '' },
     ]
   },
   {
@@ -770,6 +777,8 @@ function getTasksDone() { return DB.get('tasks_' + today(), []); }
 function setTasksDone(done) { DB.set('tasks_' + today(), done); }
 function getTaskCounts() { return DB.get('task_counts', {}); }
 function setTaskCounts(counts) { DB.set('task_counts', counts); }
+function getMathToday() { return DB.get('math_today_' + today(), 0); }
+function setMathToday(val) { DB.set('math_today_' + today(), val); }
 function renderTasks() {
   const done = getTasksDone();
   const counts = getTaskCounts();
@@ -782,15 +791,21 @@ function renderTasks() {
       const isDone = done.includes(idx);
       const count = counts[idx] || 0;
       if (t.isMath) {
-        const pct = Math.round(count / MATH_TOTAL * 100);
+        const mathToday = getMathToday();
+        const total = count;
+        const pct = Math.round(total / MATH_TOTAL * 100);
         html += `
-          <div class="checklist-item ${isDone ? 'done' : ''}" onclick="toggleTask(${idx})" style="flex-wrap:wrap">
-            <div class="checkbox ${isDone ? 'checked' : ''}">${isDone ? '✓' : ''}</div>
-            <span class="item-text"><b>${t.cat}</b></span>
-            <span class="item-count">${count}/${MATH_TOTAL}</span>
+          <div class="checklist-item" style="flex-wrap:wrap;cursor:default">
+            <span class="item-text" style="flex:1"><b>${t.cat}</b></span>
+            <span class="item-count" style="background:rgba(167,139,250,0.12);color:var(--accent-light)">${total}/${MATH_TOTAL}</span>
             <div style="width:100%">
               <div class="math-progress-bar"><div class="math-progress-fill" style="width:${pct}%"></div></div>
-              <div class="math-progress-label"><span>已学 ${count} 个考点</span><span>${pct}%</span></div>
+              <div class="math-progress-label"><span>已学 ${total} 考点 · 今日 ${mathToday}</span><span>${pct}%</span></div>
+            </div>
+            <div style="width:100%;display:flex;gap:6px;margin-top:6px">
+              <button class="btn btn-sm btn-green" style="flex:1" onclick="addMath(1)">+1 考点</button>
+              <button class="btn btn-sm" style="flex:1;background:var(--blue)" onclick="addMath(2)">+2 考点</button>
+              <button class="btn btn-sm btn-orange" style="flex:1" onclick="addMath(3)">+3 考点</button>
             </div>
           </div>`;
       } else {
@@ -806,6 +821,14 @@ function renderTasks() {
     });
   });
   list.innerHTML = html;
+}
+function addMath(n) {
+  let counts = getTaskCounts();
+  counts[1] = (counts[1] || 0) + n;
+  setTaskCounts(counts);
+  setMathToday(getMathToday() + n);
+  toast(`数学 +${n} 考点 ✅`, 'success');
+  renderTasks();
 }
 function toggleTask(i) {
   let done = getTasksDone();
@@ -1132,7 +1155,6 @@ function checkTimeHint() {
 function applyDayMode() {
   if (isMonday()) {
     document.getElementById('rule-text').textContent = '今日休息日 · 转盘帮你选个快乐方式';
-    // Auto switch to rest tab on Monday
     switchTab('rest');
     drawWheel();
   }
