@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,maximum-scale=1.0,user-scalable=no">
+<meta name="theme-color" content="#1a1721">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="后台管理">
+<title>南浊 · 后台管理</title>
+<style>
+:root{
+  --bg:#1a1721;--bg-2:#221e2c;--bg-3:#2a2438;
+  --card:rgba(255,255,255,0.04);--card-solid:#252130;
+  --border:rgba(255,255,255,0.08);--border-strong:rgba(255,255,255,0.15);
+  --text:#e8e4ec;--text-mid:#a8a0b8;--text-dim:#6e6878;
+  --accent:#8b7ec8;--accent-light:#a894e0;--accent-glow:rgba(139,126,200,0.15);
+  --green:#6cbf84;--orange:#d4a574;--red:#d47474;--blue:#7494d4;
+  --radius:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:0 0 20px;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+header{background:linear-gradient(180deg,#2a2438 0%,#1a1721 100%);padding:40px 20px 16px;text-align:center;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border)}
+.header-row{display:flex;align-items:center;justify-content:space-between;max-width:900px;margin:0 auto}
+.back-btn{background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text-mid);font-size:13px;padding:8px 14px;cursor:pointer;min-height:40px;display:flex;align-items:center;gap:4px}
+.back-btn:active{background:var(--accent-glow)}
+h1{font-size:22px;font-weight:800;background:linear-gradient(135deg,var(--accent-light),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.container{max-width:900px;margin:0 auto;padding:12px 16px}
+.nav-tabs{display:flex;gap:2px;padding:8px 16px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;white-space:nowrap;background:var(--bg-2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:99}
+.nav-tabs::-webkit-scrollbar{display:none}
+.nav-tab{flex-shrink:0;padding:10px 16px;cursor:pointer;color:var(--text-dim);font-size:14px;font-weight:500;border:none;border-radius:10px;transition:all .25s;white-space:nowrap;background:transparent}
+.nav-tab.active{background:var(--accent-glow);color:var(--accent-light);font-weight:700}
+.panel{display:none;animation:fadeIn .3s ease}
+.panel.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.card-title{font-size:15px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center}
+.stat-card .v{font-size:24px;font-weight:800;color:var(--accent-light);font-variant-numeric:tabular-nums}
+.stat-card .l{font-size:11px;color:var(--text-dim);margin-top:4px}
+.stat-card.green .v{color:var(--green)}
+.stat-card.orange .v{color:var(--orange)}
+.stat-card.blue .v{color:var(--blue)}
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{text-align:left;color:var(--text-dim);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;padding:8px 6px;border-bottom:1px solid var(--border)}
+.data-table td{padding:10px 6px;border-bottom:1px solid var(--border);color:var(--text)}
+.data-table tr:last-child td{border-bottom:none}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;min-height:40px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:active{transform:scale(0.95)}
+.btn-outline{background:transparent;border:1px solid var(--border-strong);color:var(--text)}
+.btn-green{background:var(--green)}
+.btn-red{background:var(--red)}
+.btn-blue{background:var(--blue)}
+.btn-sm{padding:6px 12px;font-size:12px;min-height:32px;border-radius:8px}
+.btn-full{width:100%}
+.input{background:var(--card-solid);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;width:100%;min-height:38px;font-family:inherit}
+.input:focus{outline:none;border-color:var(--accent)}
+textarea.input{resize:vertical;min-height:80px}
+.input-row{display:flex;gap:8px;margin-bottom:8px;align-items:center;flex-wrap:wrap}
+.label{font-size:12px;color:var(--text-dim);margin-bottom:4px;font-weight:600}
+.badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;display:inline-block}
+.badge.purple{background:rgba(167,139,250,0.15);color:var(--accent-light)}
+.badge.orange{background:rgba(212,165,116,0.15);color:var(--orange)}
+.empty{text-align:center;color:var(--text-dim);font-size:13px;padding:24px}
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--card-solid);border:1px solid var(--border-strong);border-radius:12px;padding:10px 20px;color:var(--text);font-size:14px;z-index:2000;opacity:0;transition:all .3s;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,0.3)}
+.toast.show{opacity:1;bottom:50px}
+.toast.success{border-color:var(--green)}
+.toast.warn{border-color:var(--orange)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-box{background:var(--bg-2);border:1px solid var(--border-strong);border-radius:16px;padding:24px;max-width:320px;width:90%;text-align:center}
+.modal-box .text{margin-bottom:16px;font-size:15px}
+.modal-box .btns{display:flex;gap:10px;justify-content:center}
+.prog-bar{width:100%;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,#a78bfa,#fbbf24);border-radius:4px;transition:width .4s ease}
+.prog-label{font-size:11px;color:var(--text-dim);margin-top:4px;display:flex;justify-content:space-between}
+.date-picker{display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.hint{font-size:11px;color:var(--text-dim);line-height:1.6;margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+<div class="header-row">
+<button class="back-btn" onclick="location.href='index.html'">← 工作台</button>
+<h1>⚙️ 后台管理</h1>
+<button class="back-btn" onclick="exportData()">📤 导出</button>
+</div>
+</header>
+<div class="nav-tabs" id="nav">
+<div class="nav-tab active" onclick="switchPanel(event,'overview')">📊 概览</div>
+<div class="nav-tab" onclick="switchPanel(event,'tasks')">📋 任务</div>
+<div class="nav-tab" onclick="switchPanel(event,'timer')">⏱ 计时</div>
+<div class="nav-tab" onclick="switchPanel(event,'review')">📝 复盘</div>
+<div class="nav-tab" onclick="switchPanel(event,'checkin')">✅ 打卡</div>
+<div class="nav-tab" onclick="switchPanel(event,'memo')">📌 备忘</div>
+<div class="nav-tab" onclick="switchPanel(event,'raw')">🔧 原始数据</div>
+<div class="nav-tab" onclick="switchPanel(event,'backup')">💾 备份</div>
+</div>
+<div class="container">
+<div class="panel active" id="p-overview">
+<div class="stat-grid" id="stat-grid"></div>
+<div class="card">
+<div class="card-title">📈 任务完成概览</div>
+<div id="task-overview"></div>
+</div>
+<div class="card">
+<div class="card-title">📅 近7天学习时长</div>
+<div id="week-chart"></div>
+</div>
+</div>
+<div class="panel" id="p-tasks">
+<div class="card">
+<div class="card-title">📋 任务列表与计数</div>
+<div class="hint">点击 + / − 调整累计完成次数。数学用下方专用编辑器修改考点数。</div>
+<div id="task-admin-list"></div>
+</div>
+<div class="card">
+<div class="card-title">🔧 数学考点编辑器</div>
+<div class="input-row">
+<label class="label" style="width:60px">总数</label>
+<input class="input" type="number" id="math-total-input" value="76" style="width:80px">
+</div>
+<div class="input-row">
+<label class="label" style="width:60px">已完成</label>
+<input class="input" type="number" id="math-done-input" style="width:80px">
+<button class="btn btn-sm btn-green" onclick="saveMathCount()">保存</button>
+</div>
+<div id="math-prog-preview" style="margin-top:8px"></div>
+</div>
+</div>
+<div class="panel" id="p-timer">
+<div class="card">
+<div class="card-title">⏱ 计时记录</div>
+<div class="date-picker">
+<label class="label">日期</label>
+<input class="input" type="date" id="timer-date">
+<button class="btn btn-sm" onclick="loadTimerSegments()">查看</button>
+</div>
+<div id="timer-segments"></div>
+</div>
+</div>
+<div class="panel" id="p-review">
+<div class="card">
+<div class="card-title">📝 每日复盘</div>
+<div class="date-picker">
+<label class="label">日期</label>
+<input class="input" type="date" id="review-date">
+<button class="btn btn-sm" onclick="loadReviewEntry()">查看</button>
+</div>
+<div id="review-content"></div>
+</div>
+</div>
+<div class="panel" id="p-checkin">
+<div class="card">
+<div class="card-title">✅ 打卡记录</div>
+<div id="checkin-list"></div>
+</div>
+</div>
+<div class="panel" id="p-memo">
+<div class="card">
+<div class="card-title">📌 备忘管理</div>
+<div id="memo-admin-list"></div>
+</div>
+</div>
+<div class="panel" id="p-raw">
+<div class="card">
+<div class="card-title">🔧 原始 localStorage 数据</div>
+<div class="hint">显示所有 wb_ 前缀的键值对。可以直接编辑 JSON 值并保存。</div>
+<div id="raw-list"></div>
+</div>
+</div>
+<div class="panel" id="p-backup">
+<div class="card">
+<div class="card-title">💾 数据备份与恢复</div>
+<button class="btn btn-green btn-full" onclick="exportData()">📤 导出全部数据 (JSON)</button>
+<div style="height:12px"></div>
+<label class="label">导入数据（粘贴 JSON 或选择文件）</label>
+<div class="input-row">
+<input class="input" type="file" id="import-file" accept=".json" onchange="importFromFile(event)">
+</div>
+<div class="input-row">
+<textarea class="input" id="import-text" placeholder="或粘贴 JSON..." style="min-height:100px"></textarea>
+</div>
+<button class="btn btn-blue" onclick="importFromText()">📥 导入</button>
+<div style="height:16px"></div>
+<button class="btn btn-red btn-full" onclick="clearAllData()">🗑 清空全部数据</button>
+</div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="modal-overlay" id="confirm-overlay">
+<div class="modal-box">
+<div class="text" id="confirm-text">确认？</div>
+<div class="btns">
+<button class="btn btn-outline btn-sm" onclick="closeConfirm()">取消</button>
+<button class="btn btn-red btn-sm" id="confirm-ok">确认</button>
+</div>
+</div>
+</div>
+<script>
+"use strict";
+const DB={
+  get(k,d){try{const v=localStorage.getItem('wb_'+k);return v?JSON.parse(v):d}catch(e){return d}},
+  set(k,v){localStorage.setItem('wb_'+k,JSON.stringify(v))},
+  del(k){localStorage.removeItem('wb_'+k)},
+  keys(){return Object.keys(localStorage).filter(k=>k.startsWith('wb_')).map(k=>k.slice(3))}
+};
+const MATH_TOTAL=76;
+const taskGroups=[
+  {label:'考研',icon:'📖',items:[
+    {cat:'英二闪背单词',time:'10页/天'},
+    {cat:'数学',time:'1考点/天',isMath:true},
+    {cat:'逻辑',time:'每日'},
+    {cat:'写作',time:'每日'},
+  ]},
+  {label:'多邻国 · 棋类',icon:'♟️',items:[
+    {cat:'国际象棋',time:'10分钟'},
+  ]},
+  {label:'多邻国 · 语言',icon:'🌍',items:[
+    {cat:'英语',time:'15分钟'},
+    {cat:'日语',time:'15分钟'},
+    {cat:'韩语',time:'15分钟'},
+    {cat:'西班牙语',time:'15分钟'},
+  ]},
+];
+const allTasks=taskGroups.flatMap(g=>g.items.map(t=>({...t,group:g.label,icon:g.icon})));
+function today(){return new Date().toISOString().slice(0,10)}
+function fmtMin(s){return Math.floor(s/60)+'分'}
+function fmtHour(s){return(s/3600).toFixed(1)+'h'}
+let toastTimer;
+function toast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+type;clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2000)}
+let confirmCb=null;
+function showConfirm(msg,cb){document.getElementById('confirm-text').textContent=msg;document.getElementById('confirm-overlay').classList.add('show');confirmCb=cb}
+document.getElementById('confirm-ok').onclick=()=>{closeConfirm();if(confirmCb)confirmCb();confirmCb=null};
+function closeConfirm(){document.getElementById('confirm-overlay').classList.remove('show')}
+function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
+function switchPanel(e,name){
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  e.currentTarget.classList.add('active');
+  document.getElementById('p-'+name).classList.add('active');
+  if(name==='overview')renderOverview();
+  if(name==='tasks')renderTaskAdmin();
+  if(name==='timer')loadTimerSegments();
+  if(name==='review')loadReviewEntry();
+  if(name==='checkin')renderCheckinList();
+  if(name==='memo')renderMemoAdmin();
+  if(name==='raw')renderRawData();
+}
+function renderOverview(){
+  const checkins=DB.get('checkins',[]);
+  const timerData=DB.get('timer_segments',{});
+  const counts=DB.get('task_counts',{});
+  let totalSec=0,totalSegs=0;
+  for(const d in timerData){timerData[d].forEach(s=>{totalSec+=s.duration;totalSegs++})}
+  let totalTaskDone=0;
+  for(const k in counts)totalTaskDone+=counts[k]||0;
+  const mathDone=counts[1]||0;
+  document.getElementById('stat-grid').innerHTML=
+    '<div class="stat-card green"><div class="v">'+checkins.length+'</div><div class="l">累计打卡</div></div>'+
+    '<div class="stat-card"><div class="v">'+fmtHour(totalSec)+'</div><div class="l">总学习时长</div></div>'+
+    '<div class="stat-card blue"><div class="v">'+totalSegs+'</div><div class="l">计时段数</div></div>'+
+    '<div class="stat-card orange"><div class="v">'+totalTaskDone+'</div><div class="l">任务完成总数</div></div>'+
+    '<div class="stat-card green"><div class="v">'+mathDone+'/'+MATH_TOTAL+'</div><div class="l">数学考点</div></div>'+
+    '<div class="stat-card"><div class="v">'+Math.round(mathDone/MATH_TOTAL*100)+'%</div><div class="l">数学进度</div></div>';
+  let thtml='<div style="overflow-x:auto"><table class="data-table" style="width:100%"><thead><tr><th>任务</th><th>分类</th><th>累计</th><th>进度</th></tr></thead><tbody>';
+  allTasks.forEach(function(t,i){
+    const c=counts[i]||0;
+    const pct=t.isMath?Math.round(c/MATH_TOTAL*100)+'%':'-';
+    thtml+='<tr><td>'+t.icon+' '+t.cat+'</td><td><span class="badge purple">'+t.group+'</span></td><td><b>'+c+'</b>'+(t.isMath?'/'+MATH_TOTAL:'')+'</td><td>'+pct+'</td></tr>';
+  });
+  thtml+='</tbody></table></div>';
+  document.getElementById('task-overview').innerHTML=thtml;
+  const now=new Date();
+  let days=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date(now);d.setDate(now.getDate()-i);
+    const ds=d.toISOString().slice(0,10);
+    const segs=timerData[ds]||[];
+    const total=segs.reduce(function(s,x){return s+x.duration},0);
+    days.push({date:ds,total:total,segs:segs.length});
+  }
+  const maxVal=Math.max.apply(null,days.map(function(d){return d.total}).concat([1]));
+  let chtml='';
+  days.forEach(function(d){
+    const pct=(d.total/maxVal*100).toFixed(0);
+    const dayName=['日','一','二','三','四','五','六'][new Date(d.date).getDay()];
+    chtml+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px">'+
+      '<span style="width:30px;color:var(--text-dim)">周'+dayName+'</span>'+
+      '<div style="flex:1;height:20px;background:var(--card-solid);border-radius:8px;overflow:hidden">'+
+      '<div style="height:100%;background:var(--accent);border-radius:8px;width:'+pct+'%"></div></div>'+
+      '<span style="width:50px;text-align:right;color:var(--text)">'+fmtMin(d.total)+'</span></div>';
+  });
+  document.getElementById('week-chart').innerHTML=chtml;
+}
+function renderTaskAdmin(){
+  const counts=DB.get('task_counts',{});
+  let html='';
+  let idx=0;
+  taskGroups.forEach(function(g){
+    html+='<div style="font-size:13px;font-weight:600;color:var(--accent-light);margin:10px 0 6px;border-bottom:1px solid var(--border);padding-bottom:4px">'+g.icon+' '+g.label+'</div>';
+    g.items.forEach(function(t){
+      const c=counts[idx]||0;
+      const isMath=t.isMath;
+      html+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">'+
+        '<span style="flex:1;font-size:14px"><b>'+t.cat+'</b>'+(isMath?' <span class="badge orange">数学</span>':'')+'</span>'+
+        '<span style="font-size:12px;color:var(--text-dim)">'+c+(isMath?'/'+MATH_TOTAL:'次')+'</span>'+
+        '<button class="btn btn-sm btn-green" onclick="adjustCount('+idx+',1)">+</button>'+
+        '<button class="btn btn-sm btn-red" onclick="adjustCount('+idx+',-1)">−</button>'+
+        '<input class="input" type="number" value="'+c+'" style="width:60px;text-align:center" onchange="setCount('+idx+',this.value)">'+
+      '</div>';
+      idx++;
+    });
+  });
+  document.getElementById('task-admin-list').innerHTML=html;
+  document.getElementById('math-done-input').value=counts[1]||0;
+  renderMathProg(counts[1]||0);
+}
+function renderMathProg(done){
+  const pct=Math.round(done/MATH_TOTAL*100);
+  document.getElementById('math-prog-preview').innerHTML=
+    '<div class="prog-bar"><div class="prog-fill" style="width:'+pct+'%"></div></div>'+
+    '<div class="prog-label"><span>已学 '+done+' 考点</span><span>'+pct+'%</span></div>';
+}
+function adjustCount(idx,delta){
+  const counts=DB.get('task_counts',{});
+  counts[idx]=Math.max(0,(counts[idx]||0)+delta);
+  DB.set('task_counts',counts);
+  renderTaskAdmin();
+  toast('已调整 ✅','success');
+}
+function setCount(idx,val){
+  const counts=DB.get('task_counts',{});
+  counts[idx]=Math.max(0,parseInt(val)||0);
+  DB.set('task_counts',counts);
+  toast('已保存 ✅','success');
+}
+function saveMathCount(){
+  const v=parseInt(document.getElementById('math-done-input').value)||0;
+  const counts=DB.get('task_counts',{});
+  counts[1]=Math.max(0,v);
+  DB.set('task_counts',counts);
+  renderMathProg(v);
+  toast('数学考点已更新 ✅','success');
+}
+function loadTimerSegments(){
+  const dateInput=document.getElementById('timer-date');
+  if(!dateInput.value)dateInput.value=today();
+  const date=dateInput.value;
+  const timerData=DB.get('timer_segments',{});
+  const segs=timerData[date]||[];
+  const list=document.getElementById('timer-segments');
+  if(!segs.length){list.innerHTML='<div class="empty">该日无计时记录</div>';return}
+  let html='<table class="data-table"><thead><tr><th>开始</th><th>结束</th><th>时长</th><th>操作</th></tr></thead><tbody>';
+  segs.forEach(function(s,i){
+    const st=new Date(s.start),en=new Date(s.end);
+    html+='<tr><td>'+st.toTimeString().slice(0,5)+'</td><td>'+en.toTimeString().slice(0,5)+'</td><td><b>'+fmtMin(s.duration)+'</b></td><td><button class="btn btn-sm btn-red" onclick="delTimerSeg(\''+date+'\','+i+')">删除</button></td></tr>';
+  });
+  html+='</tbody></table>';
+  const total=segs.reduce(function(s,x){return s+x.duration},0);
+  html+='<div style="margin-top:12px;text-align:right;font-size:13px;color:var(--accent-light)">当日合计：<b>'+fmtMin(total)+'</b></div>';
+  list.innerHTML=html;
+}
+function delTimerSeg(date,i){
+  showConfirm('删除这段计时记录？',function(){
+    const data=DB.get('timer_segments',{});
+    if(data[date]){data[date].splice(i,1);DB.set('timer_segments',data);loadTimerSegments();toast('已删除','')}
+  });
+}
+function loadReviewEntry(){
+  const dateInput=document.getElementById('review-date');
+  if(!dateInput.value)dateInput.value=today();
+  const date=dateInput.value;
+  const text=DB.get('review_'+date,'');
+  document.getElementById('review-content').innerHTML=
+    '<div class="input-row"><textarea class="input" id="review-edit" style="min-height:120px" placeholder="该日无复盘">'+esc(text)+'</textarea></div>'+
+    '<button class="btn btn-sm btn-green" onclick="saveReviewEntry(\''+date+'\')">💾 保存</button> '+
+    '<button class="btn btn-sm btn-red" onclick="delReviewEntry(\''+date+'\')">🗑 删除</button>';
+}
+function saveReviewEntry(date){
+  const text=document.getElementById('review-edit').value;
+  DB.set('review_'+date,text);
+  toast('复盘已保存 ✅','success');
+}
+function delReviewEntry(date){
+  showConfirm('删除该日复盘？',function(){
+    DB.del('review_'+date);
+    loadReviewEntry();
+    toast('已删除','');
+  });
+}
+function renderCheckinList(){
+  const checkins=DB.get('checkins',[]);
+  const list=document.getElementById('checkin-list');
+  if(!checkins.length){list.innerHTML='<div class="empty">暂无打卡记录</div>';return}
+  let html='<table class="data-table"><thead><tr><th>日期</th><th>操作</th></tr></thead><tbody>';
+  checkins.slice().sort().reverse().forEach(function(d){
+    html+='<tr><td>'+d+'</td><td><button class="btn btn-sm btn-red" onclick="delCheckin(\''+d+'\')">删除</button></td></tr>';
+  });
+  html+='</tbody></table>';
+  html+='<div style="margin-top:8px"><button class="btn btn-sm btn-outline" onclick="addCheckinPrompt()">+ 手动添加打卡日</button></div>';
+  list.innerHTML=html;
+}
+function delCheckin(date){
+  showConfirm('删除该日打卡？',function(){
+    let checkins=DB.get('checkins',[]);
+    checkins=checkins.filter(function(d){return d!==date});
+    DB.set('checkins',checkins);
+    renderCheckinList();
+    toast('已删除','');
+  });
+}
+function addCheckinPrompt(){
+  const date=prompt('输入日期 (YYYY-MM-DD)：',today());
+  if(date){
+    let checkins=DB.get('checkins',[]);
+    if(checkins.indexOf(date)<0){checkins.push(date);DB.set('checkins',checkins);renderCheckinList();toast('已添加 ✅','success')}
+    else{toast('该日已打卡','warn')}
+  }
+}
+function renderMemoAdmin(){
+  const memos=DB.get('memos',[]);
+  const list=document.getElementById('memo-admin-list');
+  if(!memos.length){list.innerHTML='<div class="empty">暂无备忘</div>';return}
+  let html='<table class="data-table"><thead><tr><th>内容</th><th>创建时间</th><th>操作</th></tr></thead><tbody>';
+  memos.forEach(function(m){
+    const dt=new Date(m.created);
+    html+='<tr><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(m.text)+'</td><td style="font-size:11px;color:var(--text-dim)">'+dt.toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})+'</td><td><button class="btn btn-sm btn-red" onclick="delMemo('+m.id+')">删除</button></td></tr>';
+  });
+  html+='</tbody></table>';
+  list.innerHTML=html;
+}
+function delMemo(id){
+  showConfirm('删除这条备忘？',function(){
+    let memos=DB.get('memos',[]).filter(function(x){return x.id!==id});
+    DB.set('memos',memos);
+    renderMemoAdmin();
+    toast('已删除','');
+  });
+}
+function renderRawData(){
+  const keys=DB.keys();
+  const list=document.getElementById('raw-list');
+  if(!keys.length){list.innerHTML='<div class="empty">暂无数据</div>';return}
+  let html='<table class="data-table"><thead><tr><th>键名</th><th>值</th><th>操作</th></tr></thead><tbody>';
+  keys.forEach(function(k){
+    const v=DB.get(k);
+    const vs=JSON.stringify(v);
+    const display=vs.length>100?vs.slice(0,100)+'...':vs;
+    html+='<tr><td><span class="badge purple">'+k+'</span></td><td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;font-family:monospace;font-size:11px">'+esc(display)+'</td><td><button class="btn btn-sm btn-outline" onclick="editRawKey(\''+k+'\')">编辑</button> <button class="btn btn-sm btn-red" onclick="delRawKey(\''+k+'\')">删除</button></td></tr>';
+  });
+  html+='</tbody></table>';
+  list.innerHTML=html;
+}
+function editRawKey(k){
+  const v=DB.get(k);
+  const text=prompt('编辑值 (JSON格式)：',JSON.stringify(v,null,2));
+  if(text!==null){
+    try{const parsed=JSON.parse(text);DB.set(k,parsed);renderRawData();toast('已保存 ✅','success')}
+    catch(e){toast('JSON 格式错误！','warn')}
+  }
+}
+function delRawKey(k){
+  showConfirm('删除键 wb_'+k+'？此操作不可恢复。',function(){
+    DB.del(k);
+    renderRawData();
+    toast('已删除','');
+  });
+}
+function exportData(){
+  const keys=DB.keys();
+  const data={};
+  keys.forEach(function(k){data[k]=DB.get(k)});
+  const json=JSON.stringify(data,null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='workbench-backup-'+today()+'.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('已导出 '+keys.length+' 条数据 ✅','success');
+}
+function importFromText(){
+  const text=document.getElementById('import-text').value.trim();
+  if(!text){toast('请粘贴 JSON 数据','warn');return}
+  try{
+    const data=JSON.parse(text);
+    let count=0;
+    for(const k in data){DB.set(k,data[k]);count++}
+    toast('已导入 '+count+' 条数据 ✅','success');
+    document.getElementById('import-text').value='';
+    const active=document.querySelector('.nav-tab.active');
+    if(active)active.click();
+  }catch(e){toast('JSON 格式错误！','warn')}
+}
+function importFromFile(e){
+  const file=e.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    document.getElementById('import-text').value=ev.target.result;
+    toast('文件已读取，点击「导入」确认','success');
+  };
+  reader.readAsText(file);
+}
+function clearAllData(){
+  showConfirm('⚠️ 确认清空全部数据？此操作不可恢复！建议先导出备份。',function(){
+    DB.keys().forEach(function(k){DB.del(k)});
+    toast('全部数据已清空','');
+    const active=document.querySelector('.nav-tab.active');
+    if(active)active.click();
+  });
+}
+document.getElementById('timer-date').value=today();
+document.getElementById('review-date').value=today();
+renderOverview();
+</script>
+</body>
+</html>
