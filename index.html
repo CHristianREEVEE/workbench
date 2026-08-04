@@ -744,12 +744,13 @@ function updateTimerCount() {
 
 // ====== Module 4: Study Tasks ======
 const MATH_TOTAL = 76;
+const VOCAB_TOTAL = 427;
 const taskGroups = [
   {
     label: '考研',
     icon: '📖',
     items: [
-      { cat: '英二闪背单词', time: '10页/天', desc: '' },
+      { cat: '英二闪背单词', time: '每日记录', desc: '', isVocab: true },
       { cat: '数学', time: '1考点/天', desc: '', isMath: true },
       { cat: '逻辑', time: '每日', desc: '' },
       { cat: '写作', time: '每日', desc: '' },
@@ -781,6 +782,8 @@ function getTaskCounts() { return DB.get('task_counts', {}); }
 function setTaskCounts(counts) { DB.set('task_counts', counts); }
 function getMathToday() { return DB.get('math_today_' + today(), 0); }
 function setMathToday(val) { DB.set('math_today_' + today(), val); }
+function getVocabToday() { return DB.get('vocab_today_' + today(), 0); }
+function setVocabToday(val) { DB.set('vocab_today_' + today(), val); }
 function renderTasks() {
   const done = getTasksDone();
   const counts = getTaskCounts();
@@ -810,6 +813,23 @@ function renderTasks() {
               <button class="btn btn-sm btn-orange" style="flex:1" onclick="addMath(3)">+3 考点</button>
             </div>
           </div>`;
+      } else if (t.isVocab) {
+        const vocabToday = getVocabToday();
+        const total = count;
+        const pct = Math.round(total / VOCAB_TOTAL * 100);
+        html += `
+          <div class="checklist-item" style="flex-wrap:wrap;cursor:default">
+            <span class="item-text" style="flex:1"><b>${t.cat}</b></span>
+            <span class="item-count" style="background:rgba(167,139,250,0.12);color:var(--accent-light)">${total}/${VOCAB_TOTAL}</span>
+            <div style="width:100%">
+              <div class="math-progress-bar"><div class="math-progress-fill" style="width:${pct}%"></div></div>
+              <div class="math-progress-label"><span>已背 ${total} 页 · 今日 ${vocabToday}</span><span>${pct}%</span></div>
+            </div>
+            <div style="width:100%;display:flex;gap:6px;margin-top:6px">
+              <input type="number" id="vocab-input" placeholder="今日页数" min="1" style="flex:1;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-size:14px;text-align:center" onkeydown="if(event.key==='Enter')addVocab()">
+              <button class="btn btn-sm btn-green" style="flex:0 0 auto;padding:8px 16px" onclick="addVocab()">记录</button>
+            </div>
+          </div>`;
       } else {
         html += `
           <div class="checklist-item ${isDone ? 'done' : ''}" onclick="toggleTask(${idx})">
@@ -830,6 +850,18 @@ function addMath(n) {
   setTaskCounts(counts);
   setMathToday(getMathToday() + n);
   toast(`数学 +${n} 考点 ✅`, 'success');
+  renderTasks();
+}
+function addVocab() {
+  const input = document.getElementById('vocab-input');
+  const n = parseInt(input.value);
+  if (!n || n < 1) { toast('请输入有效页数', 'warn'); return; }
+  let counts = getTaskCounts();
+  counts[0] = (counts[0] || 0) + n;
+  setTaskCounts(counts);
+  setVocabToday(getVocabToday() + n);
+  input.value = '';
+  toast(`英二闪背 +${n} 页 ✅`, 'success');
   renderTasks();
 }
 function toggleTask(i) {
