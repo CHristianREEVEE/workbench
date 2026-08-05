@@ -94,6 +94,7 @@ textarea.input{resize:vertical;min-height:80px}
 <div class="nav-tab" onclick="switchPanel(event,'review')">📝 复盘</div>
 <div class="nav-tab" onclick="switchPanel(event,'checkin')">✅ 打卡</div>
 <div class="nav-tab" onclick="switchPanel(event,'memo')">📌 备忘</div>
+<div class="nav-tab" onclick="switchPanel(event,'content')">✏️ 内容管理</div>
 <div class="nav-tab" onclick="switchPanel(event,'raw')">🔧 原始数据</div>
 <div class="nav-tab" onclick="switchPanel(event,'backup')">💾 备份</div>
 </div>
@@ -163,6 +164,58 @@ textarea.input{resize:vertical;min-height:80px}
 <div id="memo-admin-list"></div>
 </div>
 </div>
+<div class="panel" id="p-content">
+<div class="card">
+<div class="card-title">🏷 标题与标语</div>
+<div class="input-row"><label class="label" style="width:70px">主标题</label><input class="input" id="cfg-mainTitle" style="flex:1" onchange="saveCfgField('mainTitle',this.value)"></div>
+<div class="input-row"><label class="label" style="width:70px">标语1</label><input class="input" id="cfg-ruleText" style="flex:1" onchange="saveCfgField('ruleText',this.value)"></div>
+<div class="input-row"><label class="label" style="width:70px">标语2</label><input class="input" id="cfg-ruleText2" style="flex:1" onchange="saveCfgField('ruleText2',this.value)"></div>
+<div class="input-row"><label class="label" style="width:70px">休息日标语</label><input class="input" id="cfg-restRuleText" style="flex:1" onchange="saveCfgField('restRuleText',this.value)"></div>
+<div class="input-row"><label class="label" style="width:70px">晚间提示</label><input class="input" id="cfg-timeHint" style="flex:1" onchange="saveCfgField('timeHint',this.value)"></div>
+</div>
+<div class="card">
+<div class="card-title">📂 导航标签</div>
+<div id="cfg-tabs-list"></div>
+<div style="margin-top:8px"><button class="btn btn-sm btn-outline" onclick="addCfgTab()">+ 添加标签</button></div>
+</div>
+<div class="card">
+<div class="card-title">📑 卡片标题</div>
+<div id="cfg-card-titles"></div>
+</div>
+<div class="card">
+<div class="card-title">🔘 按钮文字</div>
+<div id="cfg-buttons"></div>
+</div>
+<div class="card">
+<div class="card-title">📊 统计标签</div>
+<div id="cfg-stat-labels"></div>
+</div>
+<div class="card">
+<div class="card-title">📈 统计子Tab</div>
+<div id="cfg-stat-tabs"></div>
+</div>
+<div class="card">
+<div class="card-title">🎰 转盘分类</div>
+<div id="cfg-wheel-cats"></div>
+</div>
+<div class="card">
+<div class="card-title">📋 任务组管理</div>
+<div class="hint">管理任务分组、任务名、每日时间、描述。勾选「数学」或「单词」标记特殊任务。</div>
+<div id="cfg-task-groups"></div>
+<div style="margin-top:8px"><button class="btn btn-sm btn-outline" onclick="addCfgTaskGroup()">+ 添加任务组</button></div>
+</div>
+<div class="card">
+<div class="card-title">🔢 总数设置</div>
+<div class="input-row"><label class="label" style="width:80px">数学考点总数</label><input class="input" type="number" id="cfg-mathTotal" style="width:100px" onchange="saveCfgField('mathTotal',parseInt(this.value)||76)"></div>
+<div class="input-row"><label class="label" style="width:80px">单词总页数</label><input class="input" type="number" id="cfg-vocabTotal" style="width:100px" onchange="saveCfgField('vocabTotal',parseInt(this.value)||427)"></div>
+</div>
+<div class="card">
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button class="btn btn-green btn-full" onclick="saveAllConfig()">💾 保存所有内容</button>
+<button class="btn btn-outline btn-sm" onclick="resetConfig()">↺ 恢复默认</button>
+</div>
+</div>
+</div>
 <div class="panel" id="p-raw">
 <div class="card">
 <div class="card-title">🔧 原始 localStorage 数据</div>
@@ -206,25 +259,45 @@ const DB={
   del(k){localStorage.removeItem('wb_'+k)},
   keys(){return Object.keys(localStorage).filter(k=>k.startsWith('wb_')).map(k=>k.slice(3))}
 };
-const MATH_TOTAL=76;
-const taskGroups=[
-  {label:'考研',icon:'📖',items:[
-    {cat:'英二闪背单词',time:'10页/天'},
-    {cat:'数学',time:'1考点/天',isMath:true},
-    {cat:'逻辑',time:'每日'},
-    {cat:'写作',time:'每日'},
-  ]},
-  {label:'多邻国 · 棋类',icon:'♟️',items:[
-    {cat:'国际象棋',time:'10分钟'},
-  ]},
-  {label:'多邻国 · 语言',icon:'🌍',items:[
-    {cat:'英语',time:'15分钟'},
-    {cat:'日语',time:'15分钟'},
-    {cat:'韩语',time:'15分钟'},
-    {cat:'西班牙语',time:'15分钟'},
-  ]},
-];
-const allTasks=taskGroups.flatMap(g=>g.items.map(t=>({...t,group:g.label,icon:g.icon})));
+const defaultConfig={
+  mainTitle:"南浊 · 个人工作台",
+  ruleText:"天行健，君子以自强不息",
+  ruleText2:"大道五十，天衍四九，人遁其一",
+  restRuleText:"今日休息日 · 转盘帮你选个快乐方式",
+  timeHint:"该休息啦，辛苦一天了 ❤️",
+  tabs:[{id:"home",icon:"🏠",name:"首页"},{id:"study",icon:"📋",name:"学习"},{id:"memo",icon:"📝",name:"备忘"},{id:"rest",icon:"🎰",name:"休息"}],
+  cardTitles:{checkin_stats:"📋 打卡 & 数据总览",timer:"⏱ 番茄计时器",tasks:"📚 每日学习任务",memo:"📌 备忘录",review:"📝 每日复盘",wheel:"🎰 休息日幸运转盘",stats:"📊 学习数据统计"},
+  buttons:{checkin:"今日打卡",stats:"📊 数据统计",timer_start:"▶ 开始学习",timer_stop:"■ 结束计时",memo_add:"+ 新增",review_save:"💾 保存复盘",spin:"转动转盘"},
+  statLabels:{checkin_total:"累计打卡 {n} 天",timer_count:"今日 {n} 段 · 共 {m} 分钟"},
+  statTabs:{day:"日统计",week:"周统计",month:"月统计"},
+  wheelCats:{out:"出去玩",food:"吃美食"},
+  taskGroups:[
+    {label:'考研',icon:'📖',items:[
+      {cat:'英二闪背单词',time:'每日记录',desc:'',isVocab:true},
+      {cat:'数学',time:'1考点/天',desc:'',isMath:true},
+      {cat:'逻辑',time:'每日',desc:''},
+      {cat:'写作',time:'每日',desc:''},
+    ]},
+    {label:'多邻国 · 棋类',icon:'♟️',items:[
+      {cat:'国际象棋',time:'10分钟',desc:''},
+    ]},
+    {label:'多邻国 · 语言',icon:'🌍',items:[
+      {cat:'英语',time:'15分钟',desc:''},
+      {cat:'日语',time:'15分钟',desc:''},
+      {cat:'韩语',time:'15分钟',desc:''},
+      {cat:'西班牙语',time:'15分钟',desc:''},
+    ]},
+  ],
+  mathTotal:76,
+  vocabTotal:427
+};
+function loadConfig(){try{const v=localStorage.getItem('workbench_config');return v?JSON.parse(v):JSON.parse(JSON.stringify(defaultConfig))}catch(e){return JSON.parse(JSON.stringify(defaultConfig))}}
+function saveConfigRaw(cfg){localStorage.setItem('workbench_config',JSON.stringify(cfg))}
+let CFG=loadConfig();
+let MATH_TOTAL=CFG.mathTotal;
+let VOCAB_TOTAL=CFG.vocabTotal;
+let taskGroups=CFG.taskGroups;
+let allTasks=taskGroups.flatMap(function(g){return g.items.map(function(t){return Object.assign({},t,{group:g.label,icon:g.icon})})});
 function today(){return new Date().toISOString().slice(0,10)}
 function fmtMin(s){return Math.floor(s/60)+'分'}
 function fmtHour(s){return(s/3600).toFixed(1)+'h'}
@@ -235,6 +308,103 @@ function showConfirm(msg,cb){document.getElementById('confirm-text').textContent
 document.getElementById('confirm-ok').onclick=()=>{closeConfirm();if(confirmCb)confirmCb();confirmCb=null};
 function closeConfirm(){document.getElementById('confirm-overlay').classList.remove('show')}
 function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
+// ====== Content Management ======
+function reloadConfig(){CFG=loadConfig();MATH_TOTAL=CFG.mathTotal;VOCAB_TOTAL=CFG.vocabTotal;taskGroups=CFG.taskGroups;allTasks=taskGroups.flatMap(function(g){return g.items.map(function(t){return Object.assign({},t,{group:g.label,icon:g.icon})})})}
+function saveCfgField(key,val){CFG[key]=val;saveConfigRaw(CFG);reloadConfig();toast('已保存 ✅','success')}
+function renderContentAdmin(){
+  CFG=loadConfig();
+  document.getElementById('cfg-mainTitle').value=CFG.mainTitle||'';
+  document.getElementById('cfg-ruleText').value=CFG.ruleText||'';
+  document.getElementById('cfg-ruleText2').value=CFG.ruleText2||'';
+  document.getElementById('cfg-restRuleText').value=CFG.restRuleText||'';
+  document.getElementById('cfg-timeHint').value=CFG.timeHint||'';
+  document.getElementById('cfg-mathTotal').value=CFG.mathTotal||76;
+  document.getElementById('cfg-vocabTotal').value=CFG.vocabTotal||427;
+  renderCfgTabs();renderCfgCardTitles();renderCfgButtons();renderCfgStatLabels();renderCfgStatTabs();renderCfgWheelCats();renderCfgTaskGroups();
+}
+function renderCfgTabs(){
+  var list=document.getElementById('cfg-tabs-list');
+  list.innerHTML=CFG.tabs.map(function(t,i){
+    return '<div class="input-row" style="margin-bottom:6px">'+
+      '<input class="input" type="text" value="'+esc(t.icon)+'" style="width:50px;text-align:center" onchange="updateCfgTab('+i+',\'icon\',this.value)">'+
+      '<input class="input" type="text" value="'+esc(t.name)+'" style="flex:1" onchange="updateCfgTab('+i+',\'name\',this.value)">'+
+      '<input class="input" type="text" value="'+esc(t.id)+'" style="width:80px;font-size:11px" onchange="updateCfgTab('+i+',\'id\',this.value)">'+
+      '<button class="btn btn-sm btn-red" onclick="delCfgTab('+i+')">删</button></div>';
+  }).join('');
+}
+function updateCfgTab(i,f,v){CFG.tabs[i][f]=v;saveConfigRaw(CFG);toast('已保存 ✅','success')}
+function addCfgTab(){CFG.tabs.push({id:'new'+Date.now(),icon:'📌',name:'新标签'});saveConfigRaw(CFG);renderCfgTabs();toast('已添加 ✅','success')}
+function delCfgTab(i){showConfirm('删除这个标签？',function(){CFG.tabs.splice(i,1);saveConfigRaw(CFG);renderCfgTabs();toast('已删除','')})}
+function renderCfgCardTitles(){
+  var list=document.getElementById('cfg-card-titles');
+  list.innerHTML=Object.keys(CFG.cardTitles).map(function(k){
+    return '<div class="input-row" style="margin-bottom:6px"><span class="badge purple" style="min-width:130px;text-align:center;font-family:monospace">'+esc(k)+'</span><input class="input" type="text" value="'+esc(CFG.cardTitles[k])+'" style="flex:1" onchange="updateCfgKey(\'cardTitles\',\''+k+'\',this.value)"></div>';
+  }).join('');
+}
+function renderCfgButtons(){
+  var list=document.getElementById('cfg-buttons');
+  list.innerHTML=Object.keys(CFG.buttons).map(function(k){
+    return '<div class="input-row" style="margin-bottom:6px"><span class="badge orange" style="min-width:120px;text-align:center;font-family:monospace">'+esc(k)+'</span><input class="input" type="text" value="'+esc(CFG.buttons[k])+'" style="flex:1" onchange="updateCfgKey(\'buttons\',\''+k+'\',this.value)"></div>';
+  }).join('');
+}
+function renderCfgStatLabels(){
+  var list=document.getElementById('cfg-stat-labels');
+  list.innerHTML=Object.keys(CFG.statLabels).map(function(k){
+    return '<div class="input-row" style="margin-bottom:6px"><span class="badge purple" style="min-width:130px;text-align:center;font-family:monospace">'+esc(k)+'</span><input class="input" type="text" value="'+esc(CFG.statLabels[k])+'" style="flex:1" onchange="updateCfgKey(\'statLabels\',\''+k+'\',this.value)"></div>';
+  }).join('');
+}
+function renderCfgStatTabs(){
+  var list=document.getElementById('cfg-stat-tabs');
+  list.innerHTML=Object.keys(CFG.statTabs).map(function(k){
+    return '<div class="input-row" style="margin-bottom:6px"><span class="badge purple" style="min-width:100px;text-align:center;font-family:monospace">'+esc(k)+'</span><input class="input" type="text" value="'+esc(CFG.statTabs[k])+'" style="flex:1" onchange="updateCfgKey(\'statTabs\',\''+k+'\',this.value)"></div>';
+  }).join('');
+}
+function renderCfgWheelCats(){
+  var list=document.getElementById('cfg-wheel-cats');
+  list.innerHTML=Object.keys(CFG.wheelCats).map(function(k){
+    return '<div class="input-row" style="margin-bottom:6px"><span class="badge orange" style="min-width:80px;text-align:center;font-family:monospace">'+esc(k)+'</span><input class="input" type="text" value="'+esc(CFG.wheelCats[k])+'" style="flex:1" onchange="updateCfgKey(\'wheelCats\',\''+k+'\',this.value)"></div>';
+  }).join('');
+}
+function updateCfgKey(section,key,val){CFG[section][key]=val;saveConfigRaw(CFG);reloadConfig();toast('已保存 ✅','success')}
+function renderCfgTaskGroups(){
+  var list=document.getElementById('cfg-task-groups');
+  if(!CFG.taskGroups||!CFG.taskGroups.length){list.innerHTML='<div class="empty">暂无任务组</div>';return}
+  list.innerHTML=CFG.taskGroups.map(function(g,gi){
+    var items=g.items.map(function(t,ti){
+      return '<div class="input-row" style="margin-bottom:4px">'+
+        '<input class="input" type="text" value="'+esc(t.cat)+'" style="flex:1" onchange="updateCfgTask('+gi+','+ti+',\'cat\',this.value)" placeholder="任务名">'+
+        '<input class="input" type="text" value="'+esc(t.time)+'" style="width:90px" onchange="updateCfgTask('+gi+','+ti+',\'time\',this.value)" placeholder="每日时间">'+
+        '<input class="input" type="text" value="'+esc(t.desc||'')+'" style="width:90px" onchange="updateCfgTask('+gi+','+ti+',\'desc\',this.value)" placeholder="描述">'+
+        '<label style="font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:2px;cursor:pointer"><input type="checkbox" '+(t.isMath?'checked':'')+' onchange="updateCfgTask('+gi+','+ti+',\'isMath\',this.checked)">数学</label>'+
+        '<label style="font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:2px;cursor:pointer"><input type="checkbox" '+(t.isVocab?'checked':'')+' onchange="updateCfgTask('+gi+','+ti+',\'isVocab\',this.checked)">单词</label>'+
+        '<button class="btn btn-sm btn-red" onclick="delCfgTask('+gi+','+ti+')">×</button></div>';
+    }).join('');
+    return '<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:8px">'+
+      '<div class="input-row" style="margin-bottom:8px">'+
+        '<input class="input" type="text" value="'+esc(g.icon)+'" style="width:50px;text-align:center" onchange="updateCfgGroup('+gi+',\'icon\',this.value)">'+
+        '<input class="input" type="text" value="'+esc(g.label)+'" style="flex:1;font-weight:600" onchange="updateCfgGroup('+gi+',\'label\',this.value)" placeholder="组名">'+
+        '<button class="btn btn-sm btn-outline" onclick="addCfgTask('+gi+')">+ 任务</button>'+
+        '<button class="btn btn-sm btn-red" onclick="delCfgTaskGroup('+gi+')">删组</button></div>'+
+      items+'</div>';
+  }).join('');
+}
+function updateCfgGroup(gi,f,v){CFG.taskGroups[gi][f]=v;saveConfigRaw(CFG);reloadConfig();toast('已保存 ✅','success')}
+function updateCfgTask(gi,ti,f,v){CFG.taskGroups[gi].items[ti][f]=v;saveConfigRaw(CFG);reloadConfig();toast('已保存 ✅','success')}
+function addCfgTask(gi){CFG.taskGroups[gi].items.push({cat:'新任务',time:'每日',desc:''});saveConfigRaw(CFG);reloadConfig();renderCfgTaskGroups();toast('已添加 ✅','success')}
+function delCfgTask(gi,ti){CFG.taskGroups[gi].items.splice(ti,1);saveConfigRaw(CFG);reloadConfig();renderCfgTaskGroups();toast('已删除','')}
+function delCfgTaskGroup(gi){showConfirm('删除整个任务组？',function(){CFG.taskGroups.splice(gi,1);saveConfigRaw(CFG);reloadConfig();renderCfgTaskGroups();toast('已删除','')})}
+function addCfgTaskGroup(){CFG.taskGroups.push({label:'新分组',icon:'📌',items:[{cat:'新任务',time:'每日',desc:''}]});saveConfigRaw(CFG);reloadConfig();renderCfgTaskGroups();toast('已添加 ✅','success')}
+function saveAllConfig(){
+  CFG.mainTitle=document.getElementById('cfg-mainTitle').value;
+  CFG.ruleText=document.getElementById('cfg-ruleText').value;
+  CFG.ruleText2=document.getElementById('cfg-ruleText2').value;
+  CFG.restRuleText=document.getElementById('cfg-restRuleText').value;
+  CFG.timeHint=document.getElementById('cfg-timeHint').value;
+  CFG.mathTotal=Math.max(1,parseInt(document.getElementById('cfg-mathTotal').value)||76);
+  CFG.vocabTotal=Math.max(1,parseInt(document.getElementById('cfg-vocabTotal').value)||427);
+  saveConfigRaw(CFG);reloadConfig();toast('全部内容已保存 ✅','success');
+}
+function resetConfig(){showConfirm('⚠️ 恢复所有内容为默认值？此操作不可恢复。',function(){CFG=JSON.parse(JSON.stringify(defaultConfig));saveConfigRaw(CFG);reloadConfig();renderContentAdmin();toast('已恢复默认','')})}
 function switchPanel(e,name){
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -246,6 +416,7 @@ function switchPanel(e,name){
   if(name==='review')loadReviewEntry();
   if(name==='checkin')renderCheckinList();
   if(name==='memo')renderMemoAdmin();
+  if(name==='content')renderContentAdmin();
   if(name==='raw')renderRawData();
 }
 function renderOverview(){
