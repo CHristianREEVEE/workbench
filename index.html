@@ -505,22 +505,22 @@
   <!-- 模块1：打卡&数据总览 -->
   <section>
     <div class="card">
-      <div class="card-title">📋 打卡 & 数据总览</div>
+      <div class="card-title" data-cfg-title="checkin_stats">📋 打卡 & 数据总览</div>
       <div class="checkin-area">
-        <button class="checkin-btn" id="checkin-btn" onclick="toggleCheckin()">今日打卡</button>
+        <button class="checkin-btn" id="checkin-btn" onclick="toggleCheckin()" data-cfg-btn="checkin">今日打卡</button>
         <div class="checkin-count">累计打卡 <b id="checkin-total">0</b> 天</div>
-        <button class="btn btn-outline btn-sm" onclick="openStats()" style="margin-top:12px">📊 数据统计</button>
+        <button class="btn btn-outline btn-sm" onclick="openStats()" style="margin-top:12px" data-cfg-btn="stats">📊 数据统计</button>
       </div>
     </div>
   </section>
   <!-- 模块2：番茄计时器 -->
   <section>
     <div class="card">
-      <div class="card-title">⏱ 番茄计时器</div>
+      <div class="card-title" data-cfg-title="timer">⏱ 番茄计时器</div>
       <div class="timer-display" id="timer-display">00:00:00</div>
       <div class="timer-btns">
-        <button class="btn btn-green" id="timer-start" onclick="startTimer()">▶ 开始学习</button>
-        <button class="btn btn-red" id="timer-stop" onclick="stopTimer()" disabled>■ 结束计时</button>
+        <button class="btn btn-green" id="timer-start" onclick="startTimer()" data-cfg-btn="timer_start">▶ 开始学习</button>
+        <button class="btn btn-red" id="timer-stop" onclick="stopTimer()" disabled data-cfg-btn="timer_stop">■ 结束计时</button>
       </div>
       <div style="text-align:center;margin-top:8px;font-size:13px;color:var(--text-dim)" id="timer-count">今日 0 段 · 共 0 分钟</div>
     </div>
@@ -530,7 +530,7 @@
   <!-- 模块4：每日学习任务清单 -->
   <section id="tasks-section">
     <div class="card">
-      <div class="card-title">📚 每日学习任务</div>
+      <div class="card-title" data-cfg-title="tasks">📚 每日学习任务</div>
       <div id="tasks-list"></div>
     </div>
   </section>
@@ -539,10 +539,10 @@
   <!-- 模块6：备忘录 -->
   <section>
     <div class="card">
-      <div class="card-title">📌 备忘录</div>
+      <div class="card-title" data-cfg-title="memo">📌 备忘录</div>
       <div class="memo-input-row">
         <input type="text" id="memo-input" placeholder="输入备忘内容..." onkeydown="if(event.key==='Enter')addMemo()">
-        <button class="btn btn-sm" onclick="addMemo()">+ 新增</button>
+        <button class="btn btn-sm" onclick="addMemo()" data-cfg-btn="memo_add">+ 新增</button>
       </div>
       <div id="memo-list"></div>
     </div>
@@ -550,9 +550,9 @@
   <!-- 模块5：每日复盘 -->
   <section>
     <div class="card">
-      <div class="card-title">📝 每日复盘</div>
+      <div class="card-title" data-cfg-title="review">📝 每日复盘</div>
       <textarea class="review-textarea" id="review-input" placeholder="记录错题、薄弱考点、当日学习总结..." onblur="saveReview()"></textarea>
-      <button class="btn" onclick="saveReview()" style="margin-top:10px;width:100%">💾 保存复盘</button>
+      <button class="btn" onclick="saveReview()" style="margin-top:10px;width:100%" data-cfg-btn="review_save">💾 保存复盘</button>
     </div>
   </section>
   </div>
@@ -560,20 +560,20 @@
   <!-- 模块7：幸运转盘（周一显示） -->
   <section id="wheel-section">
     <div class="card">
-      <div class="card-title">🎰 休息日幸运转盘</div>
+      <div class="card-title" data-cfg-title="wheel">🎰 休息日幸运转盘</div>
       <div class="wheel-container">
         <div class="wheel-canvas-wrap">
           <div class="wheel-pointer"></div>
           <canvas id="wheel-canvas" width="280" height="280"></canvas>
           <div class="wheel-center" onclick="spinWheel()">🎯</div>
         </div>
-        <button class="btn" onclick="spinWheel()" id="spin-btn">转动转盘</button>
+        <button class="btn" onclick="spinWheel()" id="spin-btn" data-cfg-btn="spin">转动转盘</button>
       </div>
       <div class="wheel-options-editor">
-        <div class="wheel-cat-label">出去玩</div>
+        <div class="wheel-cat-label" data-cfg-wheel="out">出去玩</div>
         <div id="wheel-out-options"></div>
         <button class="btn btn-outline btn-sm" onclick="addWheelOption('out')" style="margin-top:6px">+ 添加</button>
-        <div class="wheel-cat-label">吃美食</div>
+        <div class="wheel-cat-label" data-cfg-wheel="food">吃美食</div>
         <div id="wheel-food-options"></div>
         <button class="btn btn-outline btn-sm" onclick="addWheelOption('food')" style="margin-top:6px">+ 添加</button>
       </div>
@@ -586,13 +586,13 @@
 <div class="modal-overlay" id="stats-modal">
   <div class="modal">
     <div class="modal-header">
-      <span style="font-size:18px;font-weight:700">📊 数据统计</span>
+      <span style="font-size:18px;font-weight:700" data-cfg-title="stats">📊 学习数据统计</span>
       <button class="modal-close" onclick="closeStats()">×</button>
     </div>
     <div class="tab-row">
-      <div class="tab active" onclick="switchStatTab('day')">日统计</div>
-      <div class="tab" onclick="switchStatTab('week')">周统计</div>
-      <div class="tab" onclick="switchStatTab('month')">月统计</div>
+      <div class="tab active" onclick="switchStatTab('day')" data-cfg-stattab="day">日统计</div>
+      <div class="tab" onclick="switchStatTab('week')" data-cfg-stattab="week">周统计</div>
+      <div class="tab" onclick="switchStatTab('month')" data-cfg-stattab="month">月统计</div>
     </div>
     <div id="stats-content"></div>
   </div>
@@ -688,7 +688,7 @@ function updateCheckinUI() {
   const isToday = checkins.includes(today());
   const btn = document.getElementById('checkin-btn');
   if (isToday) { btn.classList.add('done'); btn.textContent = '已打卡'; }
-  else { btn.classList.remove('done'); btn.textContent = '今日打卡'; }
+  else { btn.classList.remove('done'); btn.textContent = CFG.buttons.checkin || '今日打卡'; }
   document.getElementById('checkin-total').textContent = checkins.length;
 }
 
@@ -739,43 +739,71 @@ function updateTimerDisplay() {
 function updateTimerCount() {
   const segs = getTodaySegments();
   const totalSec = segs.reduce((s, x) => s + x.duration, 0);
-  document.getElementById('timer-count').textContent = `今日 ${segs.length} 段 · 共 ${fmtMin(totalSec)}`;
+  const fmt = CFG.statLabels.timer_count || '今日 {n} 段 · 共 {m} 分钟';
+  document.getElementById('timer-count').textContent = fmt.replace('{n}',segs.length).replace('{m}',fmtMin(totalSec));
 }
 
 // ====== Module 4: Study Tasks ======
-const MATH_TOTAL = 76;
-const VOCAB_TOTAL = 427;
-const taskGroups = [
-  {
-    label: '考研',
-    icon: '📖',
-    items: [
-      { cat: '英二闪背单词', time: '每日记录', desc: '', isVocab: true },
-      { cat: '数学', time: '1考点/天', desc: '', isMath: true },
-      { cat: '逻辑', time: '每日', desc: '' },
-      { cat: '写作', time: '每日', desc: '' },
-    ]
-  },
-  {
-    label: '多邻国 · 棋类',
-    icon: '♟️',
-    items: [
-      { cat: '国际象棋', time: '10分钟', desc: '' },
-    ]
-  },
-  {
-    label: '多邻国 · 语言',
-    icon: '🌍',
-    items: [
-      { cat: '英语', time: '15分钟', desc: '' },
-      { cat: '日语', time: '15分钟', desc: '' },
-      { cat: '韩语', time: '15分钟', desc: '' },
-      { cat: '西班牙语', time: '15分钟', desc: '' },
-    ]
-  },
-];
-// Flatten for storage compatibility
-const tasks = taskGroups.flatMap(g => g.items.map(t => ({...t, group: g.label})));
+const defaultConfig={
+  mainTitle:"南浊 · 个人工作台",
+  ruleText:"天行健，君子以自强不息",
+  ruleText2:"大道五十，天衍四九，人遁其一",
+  restRuleText:"今日休息日 · 转盘帮你选个快乐方式",
+  timeHint:"该休息啦，辛苦一天了 ❤️",
+  tabs:[{id:"home",icon:"🏠",name:"首页"},{id:"study",icon:"📋",name:"学习"},{id:"memo",icon:"📝",name:"备忘"},{id:"rest",icon:"🎰",name:"休息"}],
+  cardTitles:{checkin_stats:"📋 打卡 & 数据总览",timer:"⏱ 番茄计时器",tasks:"📚 每日学习任务",memo:"📌 备忘录",review:"📝 每日复盘",wheel:"🎰 休息日幸运转盘",stats:"📊 学习数据统计"},
+  buttons:{checkin:"今日打卡",stats:"📊 数据统计",timer_start:"▶ 开始学习",timer_stop:"■ 结束计时",memo_add:"+ 新增",review_save:"💾 保存复盘",spin:"转动转盘"},
+  statLabels:{checkin_total:"累计打卡 {n} 天",timer_count:"今日 {n} 段 · 共 {m} 分钟"},
+  statTabs:{day:"日统计",week:"周统计",month:"月统计"},
+  wheelCats:{out:"出去玩",food:"吃美食"},
+  taskGroups:[
+    {label:'考研',icon:'📖',items:[
+      {cat:'英二闪背单词',time:'每日记录',desc:'',isVocab:true},
+      {cat:'数学',time:'1考点/天',desc:'',isMath:true},
+      {cat:'逻辑',time:'每日',desc:''},
+      {cat:'写作',time:'每日',desc:''},
+    ]},
+    {label:'多邻国 · 棋类',icon:'♟️',items:[
+      {cat:'国际象棋',time:'10分钟',desc:''},
+    ]},
+    {label:'多邻国 · 语言',icon:'🌍',items:[
+      {cat:'英语',time:'15分钟',desc:''},
+      {cat:'日语',time:'15分钟',desc:''},
+      {cat:'韩语',time:'15分钟',desc:''},
+      {cat:'西班牙语',time:'15分钟',desc:''},
+    ]},
+  ],
+  mathTotal:76,
+  vocabTotal:427
+};
+function loadConfig(){try{const v=localStorage.getItem('workbench_config');return v?JSON.parse(v):JSON.parse(JSON.stringify(defaultConfig))}catch(e){return JSON.parse(JSON.stringify(defaultConfig))}}
+const CFG=loadConfig();
+const MATH_TOTAL=CFG.mathTotal;
+const VOCAB_TOTAL=CFG.vocabTotal;
+const taskGroups=CFG.taskGroups;
+const tasks=taskGroups.flatMap(g=>g.items.map(t=>({...t,group:g.label})));
+function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
+function applyConfig(){
+  document.querySelector('.main-title').textContent=CFG.mainTitle||'';
+  document.getElementById('rule-text').textContent=CFG.ruleText||'';
+  const bars=document.querySelectorAll('.rule-bar');
+  if(bars[1]){const sps=bars[1].querySelectorAll('span');if(sps[1])sps[1].textContent=CFG.ruleText2||'';}
+  // Tabs
+  const tabsEl=document.getElementById('tabs');
+  if(tabsEl){
+    const adminTab=tabsEl.querySelector('.tab:last-child');
+    const adminHTML=adminTab?adminTab.outerHTML:'';
+    tabsEl.innerHTML=CFG.tabs.map((t,i)=>'<div class="tab'+(i===0?' active':'')+'" data-tab="'+esc(t.id)+'" onclick="switchTab(\''+esc(t.id)+'\')">'+esc(t.icon)+' '+esc(t.name)+'</div>').join('')+adminHTML;
+  }
+  // Card titles
+  document.querySelectorAll('[data-cfg-title]').forEach(el=>{const k=el.getAttribute('data-cfg-title');if(CFG.cardTitles[k])el.textContent=CFG.cardTitles[k];});
+  // Buttons
+  document.querySelectorAll('[data-cfg-btn]').forEach(el=>{const k=el.getAttribute('data-cfg-btn');if(CFG.buttons[k])el.textContent=CFG.buttons[k];});
+  // Stat tabs
+  document.querySelectorAll('[data-cfg-stattab]').forEach(el=>{const k=el.getAttribute('data-cfg-stattab');if(CFG.statTabs[k])el.textContent=CFG.statTabs[k];});
+  // Wheel cats
+  document.querySelectorAll('[data-cfg-wheel]').forEach(el=>{const k=el.getAttribute('data-cfg-wheel');if(CFG.wheelCats[k])el.textContent=CFG.wheelCats[k];});
+}
 function getTasksDone() { return DB.get('tasks_' + today(), []); }
 function setTasksDone(done) { DB.set('tasks_' + today(), done); }
 function getTaskCounts() { return DB.get('task_counts', {}); }
@@ -1181,14 +1209,14 @@ function checkTimeHint() {
   }
   // 22:00-8:00 night rest
   if (totalMin >= 1320 || totalMin < 480) {
-    setTimeout(() => toast('该休息啦，辛苦一天了 ❤️', 'warn'), 500);
+    setTimeout(() => toast(CFG.timeHint||'该休息啦，辛苦一天了 ❤️', 'warn'), 500);
   }
 }
 
 // ====== Monday Detection ======
 function applyDayMode() {
   if (isMonday()) {
-    document.getElementById('rule-text').textContent = '今日休息日 · 转盘帮你选个快乐方式';
+    document.getElementById('rule-text').textContent = CFG.restRuleText||'今日休息日 · 转盘帮你选个快乐方式';
     switchTab('rest');
     drawWheel();
   }
@@ -1214,6 +1242,7 @@ function switchTab(name) {
 }
 
 // ====== Init ======
+applyConfig();
 updateCheckinUI();
 updateTimerCount();
 renderTasks();
