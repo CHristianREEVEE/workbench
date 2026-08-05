@@ -191,8 +191,18 @@ textarea.input{resize:vertical;min-height:80px}
 <div id="cfg-stat-labels"></div>
 </div>
 <div class="card">
-<div class="card-title">📈 统计子Tab</div>
+<div class="card-title">📊 统计子Tab</div>
 <div id="cfg-stat-tabs"></div>
+</div>
+<div class="card">
+<div class="card-title">📝 统计文字标签</div>
+<div class="hint">统计弹窗里每一行的文字（日/周/月三个Tab通用）</div>
+<div id="cfg-stat-row-labels"></div>
+</div>
+<div class="card">
+<div class="card-title">⏱ 每日学习时长修改</div>
+<div class="hint">手动调整本周每天的学习时长（分钟），修改后立即生效。留空则用计时器原始数据。</div>
+<div id="cfg-week-times"></div>
 </div>
 <div class="card">
 <div class="card-title">🎰 转盘分类</div>
@@ -270,6 +280,7 @@ const defaultConfig={
   buttons:{checkin:"今日打卡",stats:"📊 数据统计",timer_start:"▶ 开始学习",timer_stop:"■ 结束计时",memo_add:"+ 新增",review_save:"💾 保存复盘",spin:"转动转盘"},
   statLabels:{checkin_total:"累计打卡 {n} 天",timer_count:"今日 {n} 段 · 共 {m} 分钟"},
   statTabs:{day:"日统计",week:"周统计",month:"月统计"},
+  statRowLabels:{daily_total:"当日总时长",seg_count:"学习段数",seg_detail:"分段明细",no_data:"今日暂无记录",week_total:"本周总时长",daily_avg:"日均时长",checkin_days:"打卡天数",study_days:"学习天数",trend_title:"时长趋势",month_total:"月度总时长",week_trend:"周度趋势",minute_suffix:"分"},
   wheelCats:{out:"出去玩",food:"吃美食"},
   taskGroups:[
     {label:'考研',icon:'📖',items:[
@@ -320,7 +331,7 @@ function renderContentAdmin(){
   document.getElementById('cfg-timeHint').value=CFG.timeHint||'';
   document.getElementById('cfg-mathTotal').value=CFG.mathTotal||76;
   document.getElementById('cfg-vocabTotal').value=CFG.vocabTotal||427;
-  renderCfgTabs();renderCfgCardTitles();renderCfgButtons();renderCfgStatLabels();renderCfgStatTabs();renderCfgWheelCats();renderCfgTaskGroups();
+  renderCfgTabs();renderCfgCardTitles();renderCfgButtons();renderCfgStatLabels();renderCfgStatTabs();renderCfgStatRowLabels();renderCfgWeekTimes();renderCfgWheelCats();renderCfgTaskGroups();
 }
 function renderCfgTabs(){
   var list=document.getElementById('cfg-tabs-list');
@@ -364,6 +375,52 @@ function renderCfgWheelCats(){
   list.innerHTML=Object.keys(CFG.wheelCats).map(function(k){
     return '<div class="input-row" style="margin-bottom:6px"><span class="badge orange" style="min-width:80px;text-align:center;font-family:monospace">'+esc(k)+'</span><input class="input" type="text" value="'+esc(CFG.wheelCats[k])+'" style="flex:1" onchange="updateCfgKey(\'wheelCats\',\''+k+'\',this.value)"></div>';
   }).join('');
+}
+function renderCfgStatRowLabels(){
+  var order=['daily_total','seg_count','seg_detail','no_data','week_total','daily_avg','checkin_days','study_days','trend_title','month_total','week_trend','minute_suffix'];
+  var desc={daily_total:'当日总时长',seg_count:'学习段数',seg_detail:'分段明细',no_data:'今日暂无记录',week_total:'本周总时长',daily_avg:'日均时长',checkin_days:'打卡天数',study_days:'学习天数',trend_title:'时长趋势',month_total:'月度总时长',week_trend:'周度趋势',minute_suffix:'分（后缀）'};
+  var list=document.getElementById('cfg-stat-row-labels');
+  if(!CFG.statRowLabels)CFG.statRowLabels={};
+  list.innerHTML=order.map(function(k){
+    var v=CFG.statRowLabels[k]!==undefined?CFG.statRowLabels[k]:(desc[k]||k);
+    return '<div class="input-row" style="margin-bottom:6px"><span class="badge purple" style="min-width:100px;text-align:center;font-family:monospace">'+esc(k)+'</span><input class="input" type="text" value="'+esc(v)+'" style="flex:1" onchange="updateCfgStatRowLabel(\''+k+'\',this.value)"></div>';
+  }).join('');
+}
+function updateCfgStatRowLabel(k,val){if(!CFG.statRowLabels)CFG.statRowLabels={};CFG.statRowLabels[k]=val;saveConfigRaw(CFG);toast('已保存 ✅','success')}
+function renderCfgWeekTimes(){
+  var now=new Date();
+  var day=now.getDay()||7;
+  var list=document.getElementById('cfg-week-times');
+  var overrides=DB.get('manual_time',{})||{};
+  var labels=['周一','周二','周三','周四','周五','周六','周日'];
+  var dates=[];
+  for(var i=1;i<=7;i++){
+    var d=new Date(now);
+    d.setDate(now.getDate()-day+i);
+    dates.push(d.toISOString().slice(0,10));
+  }
+  // Also get actual timer data for comparison
+  var timerData=DB.get('timer_segments',{});
+  var html=dates.map(function(dateStr,i){
+    var segs=timerData[dateStr]||[];
+    var actualMin=Math.floor(segs.reduce(function(s,x){return s+x.duration},0)/60);
+    var override=overrides[dateStr];
+    var val=override!==undefined?override:'';
+    return '<div class="input-row" style="margin-bottom:6px">'+
+      '<span class="badge blue" style="min-width:55px;text-align:center">'+labels[i]+'</span>'+
+      '<span style="font-size:11px;color:var(--text-dim);width:75px">'+dateStr.slice(5)+'</span>'+
+      '<input class="input" type="number" value="'+(val!==''?val:'')+'" style="width:80px;text-align:center" placeholder="'+actualMin+'" onchange="setWeekTime(\''+dateStr+'\',this.value)">'+
+      '<span style="font-size:11px;color:var(--text-dim)">分钟 (计时器:'+actualMin+')</span>'+
+    '</div>';
+  }).join('');
+  list.innerHTML=html;
+}
+function setWeekTime(dateStr,val){
+  var overrides=DB.get('manual_time',{})||{};
+  if(val===''||val===null){delete overrides[dateStr]}
+  else{overrides[dateStr]=Math.max(0,parseInt(val)||0)}
+  DB.set('manual_time',overrides);
+  toast('已保存 ✅','success');
 }
 function updateCfgKey(section,key,val){CFG[section][key]=val;saveConfigRaw(CFG);reloadConfig();toast('已保存 ✅','success')}
 function renderCfgTaskGroups(){
