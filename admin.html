@@ -630,9 +630,13 @@ function renderCheckinList(){
   const checkins=DB.get('checkins',[]);
   const list=document.getElementById('checkin-list');
   if(!checkins.length){list.innerHTML='<div class="empty">暂无打卡记录</div>';return}
-  let html='<table class="data-table"><thead><tr><th>日期</th><th>操作</th></tr></thead><tbody>';
+  var weekNames=['日','一','二','三','四','五','六'];
+  let html='<table class="data-table"><thead><tr><th>日期</th><th>星期</th><th>操作</th></tr></thead><tbody>';
   checkins.slice().sort().reverse().forEach(function(d){
-    html+='<tr><td>'+d+'</td><td><button class="btn btn-sm btn-red" onclick="delCheckin(\''+d+'\')">删除</button></td></tr>';
+    var parts=d.split('-');
+    var dt=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+    var weekDay='周'+weekNames[dt.getDay()];
+    html+='<tr><td>'+d+'</td><td>'+weekDay+'</td><td><button class="btn btn-sm btn-red" onclick="delCheckin(\''+d+'\')">删除</button></td></tr>';
   });
   html+='</tbody></table>';
   html+='<div style="margin-top:8px"><button class="btn btn-sm btn-outline" onclick="addCheckinPrompt()">+ 手动添加打卡日</button></div>';
