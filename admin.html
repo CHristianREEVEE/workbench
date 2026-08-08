@@ -479,9 +479,15 @@ function switchPanel(e,name){
 function renderOverview(){
   const checkins=DB.get('checkins',[]);
   const timerData=DB.get('timer_segments',{});
+  const overrides=DB.get('manual_time',{})||{};
   const counts=DB.get('task_counts',{});
   let totalSec=0,totalSegs=0;
-  for(const d in timerData){timerData[d].forEach(s=>{totalSec+=s.duration;totalSegs++})}
+  for(const d in timerData){
+    const segs=timerData[d];
+    totalSegs+=segs.length;
+    if(overrides[d]!==undefined){totalSec+=overrides[d]*60}
+    else{segs.forEach(s=>{totalSec+=s.duration})}
+  }
   let totalTaskDone=0;
   for(const k in counts)totalTaskDone+=counts[k]||0;
   const mathDone=counts[1]||0;
@@ -506,7 +512,9 @@ function renderOverview(){
     const d=new Date(now);d.setDate(now.getDate()-i);
     const ds=d.toISOString().slice(0,10);
     const segs=timerData[ds]||[];
-    const total=segs.reduce(function(s,x){return s+x.duration},0);
+    let total;
+    if(overrides[ds]!==undefined){total=overrides[ds]*60}
+    else{total=segs.reduce(function(s,x){return s+x.duration},0)}
     days.push({date:ds,total:total,segs:segs.length});
   }
   const maxVal=Math.max.apply(null,days.map(function(d){return d.total}).concat([1]));
