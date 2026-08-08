@@ -120,6 +120,13 @@
   .btn-sm { padding: 6px 14px; font-size: 13px; min-height: 36px; border-radius: 8px; }
   /* ===== Module 1: Check-in ===== */
   .checkin-area { text-align: center; padding: 10px 0; }
+  .today-date { font-size: 15px; color: var(--text-mid); margin-bottom: 2px; }
+  .big-clock {
+    font-size: 56px; font-weight: 800; text-align: center;
+    color: var(--accent-light); font-variant-numeric: tabular-nums;
+    letter-spacing: 4px; margin: 6px 0 14px;
+    text-shadow: 0 0 30px rgba(139,126,200,0.15);
+  }
   .checkin-btn {
     width: 120px; height: 120px;
     border-radius: 50%;
@@ -507,6 +514,8 @@
     <div class="card">
       <div class="card-title" data-cfg-title="checkin_stats">📋 打卡 & 数据总览</div>
       <div class="checkin-area">
+        <div class="today-date" id="today-date"></div>
+        <div class="big-clock" id="big-clock">00:00:00</div>
         <button class="checkin-btn" id="checkin-btn" onclick="toggleCheckin()" data-cfg-btn="checkin">今日打卡</button>
         <div class="checkin-count">累计打卡 <b id="checkin-total">0</b> 天</div>
       </div>
@@ -1245,6 +1254,23 @@ function switchTab(name) {
   if (panel) panel.classList.add('active');
   window.scrollTo(0, 0);
 }
+
+// ====== Live Clock ======
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  const s = String(now.getSeconds()).padStart(2,'0');
+  const clockEl = document.getElementById('big-clock');
+  if (clockEl) clockEl.textContent = h+':'+m+':'+s;
+  const dateEl = document.getElementById('today-date');
+  if (dateEl) {
+    const days = ['日','一','二','三','四','五','六'];
+    dateEl.textContent = now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日 周'+days[now.getDay()];
+  }
+}
+updateClock();
+setInterval(updateClock, 1000);
 
 // ====== Init ======
 applyConfig();
