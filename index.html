@@ -694,6 +694,7 @@ function fmtTime(s) {
 }
 function fmtMin(s) { return Math.floor(s/60) + '分钟'; }
 function fmtHour(s) { return (s/3600).toFixed(1) + '小时'; }
+function fmtDual(s) { const h=(s/3600).toFixed(1),m=Math.floor(s/60); return h+'小时 · '+m+'分钟'; }
 
 // ====== Module 1: Check-in ======
 function getCheckins() { return DB.get('checkins', []); }
@@ -769,7 +770,7 @@ function updateTimerCount() {
   const segs = getTodaySegments();
   const totalSec = segs.reduce((s, x) => s + x.duration, 0);
   const fmt = CFG.statLabels.timer_count || '今日 {n} 段 · 共 {m} 分钟';
-  document.getElementById('timer-count').textContent = fmt.replace('{n}',segs.length).replace('{m}',fmtMin(totalSec));
+  document.getElementById('timer-count').textContent = fmt.replace('{n}',segs.length).replace('{m}',fmtDual(totalSec));
 }
 
 // ====== Module 4: Study Tasks ======
@@ -1176,7 +1177,7 @@ function renderStats() {
   if (statTab === 'day') {
     const todayStats = stats[0];
     const segs = todayStats.segments;
-    let html = `<div class="stat-row"><span>${L.daily_total||'当日总时长'}</span><b>${fmtHour(todayStats.total)}</b></div>`;
+    let html = `<div class="stat-row"><span>${L.daily_total||'当日总时长'}</span><b>${fmtDual(todayStats.total)}</b></div>`;
     html += `<div class="stat-row"><span>${L.seg_count||'学习段数'}</span><b>${segs.length} 段</b></div>`;
     html += `<div class="section-label" style="margin-top:12px">${L.seg_detail||'分段明细'}</div>`;
     if (segs.length) {
@@ -1191,8 +1192,8 @@ function renderStats() {
   } else if (statTab === 'week') {
     const activeDays = stats.filter(s => s.total > 0).length;
     const checkinDays = stats.filter(s => checkins.includes(s.date)).length;
-    let html = `<div class="stat-row"><span>${L.week_total||'本周总时长'}</span><b>${fmtHour(totalSec)}</b></div>`;
-    html += `<div class="stat-row"><span>${L.daily_avg||'日均时长'}</span><b>${fmtHour(totalSec / 7)}</b></div>`;
+    let html = `<div class="stat-row"><span>${L.week_total||'本周总时长'}</span><b>${fmtDual(totalSec)}</b></div>`;
+    html += `<div class="stat-row"><span>${L.daily_avg||'日均时长'}</span><b>${fmtDual(totalSec / 7)}</b></div>`;
     html += `<div class="stat-row"><span>${L.checkin_days||'打卡天数'}</span><b>${checkinDays} / 7</b></div>`;
     html += `<div class="stat-row"><span>${L.study_days||'学习天数'}</span><b>${activeDays} / 7</b></div>`;
     html += `<div class="stat-chart"><div class="section-label">${L.trend_title||'时长趋势'}</div>`;
@@ -1200,31 +1201,38 @@ function renderStats() {
     const maxVal = Math.max(...stats.map(s => s.total), 1);
     html += stats.map((s, i) => {
       const pct = (s.total / maxVal * 100).toFixed(0);
-      const mins = Math.floor(s.total / 60);
-      return `<div class="stat-bar"><span class="bar-label">周${days[i]}</span><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div><span class="bar-value">${mins}${minSuffix}</span></div>`;
+      const h = (s.total/3600).toFixed(1), mins = Math.floor(s.total / 60);
+      return `<div class="stat-bar"><span class="bar-label">周${days[i]}</span><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div><span class="bar-value">${h}h · ${mins}${minSuffix}</span></div>`;
     }).join('');
     html += '</div>';
     content.innerHTML = html;
   } else {
     const activeDays = stats.filter(s => s.total > 0).length;
     const checkinDays = stats.filter(s => checkins.includes(s.date)).length;
-    let html = `<div class="stat-row"><span>${L.month_total||'月度总时长'}</span><b>${fmtHour(totalSec)}</b></div>`;
+    let html = `<div class="stat-row"><span>${L.month_total||'月度总时长'}</span><b>${fmtDual(totalSec)}</b></div>`;
     html += `<div class="stat-row"><span>${L.checkin_days||'打卡天数'}</span><b>${checkinDays} 天</b></div>`;
     html += `<div class="stat-row"><span>${L.study_days||'学习天数'}</span><b>${activeDays} 天</b></div>`;
     const maxVal = Math.max(...stats.map(s => s.total), 1);
     const weeks = {};
+    const weekOrder = [];
     stats.forEach(s => {
-      const d = new Date(s.date);
-      const weekNum = Math.ceil(d.getDate() / 7);
-      const key = `第${weekNum}周`;
-      if (!weeks[key]) weeks[key] = 0;
+      const d = new Date(s.date + 'T00:00:00');
+      const dow = d.getDay() || 7;
+      const mon = new Date(d);
+      mon.setDate(d.getDate() - dow + 1);
+      const sun = new Date(mon);
+      sun.setDate(mon.getDate() + 6);
+      const fmt = dt => (dt.getMonth()+1)+'/'+dt.getDate();
+      const key = fmt(mon)+'-'+fmt(sun);
+      if (!weeks[key]) { weeks[key] = 0; weekOrder.push(key); }
       weeks[key] += s.total;
     });
     html += `<div class="stat-chart"><div class="section-label">${L.week_trend||'周度趋势'}</div>`;
-    for (const [label, val] of Object.entries(weeks)) {
+    for (const key of weekOrder) {
+      const val = weeks[key];
       const pct = (val / maxVal * 100).toFixed(0);
-      const mins = Math.floor(val / 60);
-      html += `<div class="stat-bar"><span class="bar-label">${label}</span><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div><span class="bar-value">${mins}${minSuffix}</span></div>`;
+      const h = (val/3600).toFixed(1), mins = Math.floor(val / 60);
+      html += `<div class="stat-bar"><span class="bar-label">${key}</span><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div><span class="bar-value">${h}h · ${mins}${minSuffix}</span></div>`;
     }
     html += '</div>';
     content.innerHTML = html;
