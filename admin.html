@@ -89,12 +89,12 @@ textarea.input{resize:vertical;min-height:80px}
 </header>
 <div class="nav-tabs" id="nav">
 <div class="nav-tab active" onclick="switchPanel(event,'overview')">📊 概览</div>
+<div class="nav-tab" onclick="switchPanel(event,'content')">✏️ 内容管理</div>
 <div class="nav-tab" onclick="switchPanel(event,'tasks')">📋 任务</div>
 <div class="nav-tab" onclick="switchPanel(event,'timer')">⏱ 计时</div>
 <div class="nav-tab" onclick="switchPanel(event,'review')">📝 复盘</div>
 <div class="nav-tab" onclick="switchPanel(event,'checkin')">✅ 打卡</div>
 <div class="nav-tab" onclick="switchPanel(event,'memo')">📌 备忘</div>
-<div class="nav-tab" onclick="switchPanel(event,'content')">✏️ 内容管理</div>
 <div class="nav-tab" onclick="switchPanel(event,'raw')">🔧 原始数据</div>
 <div class="nav-tab" onclick="switchPanel(event,'backup')">💾 备份</div>
 </div>
@@ -166,6 +166,11 @@ textarea.input{resize:vertical;min-height:80px}
 </div>
 <div class="panel" id="p-content">
 <div class="card">
+<div class="card-title">⏱ 每日学习时长修改</div>
+<div class="hint">手动调整本周每天的学习时长（分钟），修改后立即生效。留空则用计时器原始数据。</div>
+<div id="cfg-week-times"></div>
+</div>
+<div class="card">
 <div class="card-title">🏷 标题与标语</div>
 <div class="input-row"><label class="label" style="width:70px">主标题</label><input class="input" id="cfg-mainTitle" style="flex:1" onchange="saveCfgField('mainTitle',this.value)"></div>
 <div class="input-row"><label class="label" style="width:70px">标语1</label><input class="input" id="cfg-ruleText" style="flex:1" onchange="saveCfgField('ruleText',this.value)"></div>
@@ -198,11 +203,6 @@ textarea.input{resize:vertical;min-height:80px}
 <div class="card-title">📝 统计文字标签</div>
 <div class="hint">统计弹窗里每一行的文字（日/周/月三个Tab通用）</div>
 <div id="cfg-stat-row-labels"></div>
-</div>
-<div class="card">
-<div class="card-title">⏱ 每日学习时长修改</div>
-<div class="hint">手动调整本周每天的学习时长（分钟），修改后立即生效。留空则用计时器原始数据。</div>
-<div id="cfg-week-times"></div>
 </div>
 <div class="card">
 <div class="card-title">🎰 转盘分类</div>
