@@ -332,56 +332,112 @@
   }
   .memo-actions .icon-btn:active { transform: scale(0.9); }
   .memo-actions .del { color: var(--red); }
-  /* ===== Module 7: Lucky Wheel ===== */
-  .wheel-container { text-align: center; }
-  .wheel-canvas-wrap {
+  /* ===== Module 7: Coding Roadmap ===== */
+  .roadmap-overview {
+    text-align: center;
+    margin-bottom: 16px;
+    padding: 14px;
+    background: var(--card);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .roadmap-overview .ov-label { font-size: 13px; color: var(--text-dim); margin-bottom: 4px; }
+  .roadmap-overview .ov-value { font-size: 28px; font-weight: 800; color: var(--accent-light); }
+  .roadmap-overview .ov-bar {
+    width: 100%; height: 10px; background: rgba(255,255,255,0.06);
+    border-radius: 5px; margin-top: 8px; overflow: hidden;
+  }
+  .roadmap-overview .ov-fill {
+    height: 100%; background: linear-gradient(90deg, #8b7ec8, #6cbf84);
+    border-radius: 5px; transition: width .5s ease;
+  }
+  .roadmap-phase {
     position: relative;
-    width: 280px; height: 280px;
-    margin: 0 auto 16px;
+    margin-bottom: 0;
+    padding-left: 36px;
   }
-  #wheel-canvas {
-    width: 280px; height: 280px;
-    border-radius: 50%;
-    box-shadow: 0 0 20px rgba(139,126,200,0.2);
-  }
-  .wheel-pointer {
+  .roadmap-phase::before {
+    content: '';
     position: absolute;
-    top: -5px; left: 50%;
-    transform: translateX(-50%);
-    width: 0; height: 0;
-    border-left: 15px solid transparent;
-    border-right: 15px solid transparent;
-    border-top: 25px solid var(--accent-light);
-    z-index: 10;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    left: 15px; top: 0; bottom: -16px;
+    width: 2px;
+    background: var(--border);
   }
-  .wheel-center {
+  .roadmap-phase:last-child::before { display: none; }
+  .roadmap-phase .phase-badge {
     position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%,-50%);
-    width: 50px; height: 50px;
+    left: 0; top: 0;
+    width: 32px; height: 32px;
     border-radius: 50%;
     background: var(--accent);
-    border: 3px solid var(--bg);
-    z-index: 10;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
     display: flex; align-items: center; justify-content: center;
-    font-size: 20px;
-    cursor: pointer;
+    z-index: 2;
+    box-shadow: 0 0 0 4px var(--bg);
   }
-  .wheel-options-editor { margin-top: 16px; }
-  .wheel-cat-label { font-size: 13px; color: var(--text-mid); margin: 8px 0 4px; font-weight: 600; }
-  .wheel-option-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
-  .wheel-option-row input {
-    flex: 1;
-    background: var(--card-solid);
+  .roadmap-phase.done .phase-badge { background: var(--green); }
+  .roadmap-phase .phase-card {
+    background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 10px;
-    color: var(--text);
-    font-size: 13px;
-    min-height: 36px;
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 16px;
+    margin-left: 8px;
   }
-  .wheel-option-row input:focus { outline: none; border-color: var(--accent); }
+  .roadmap-phase .phase-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent-light);
+    margin-bottom: 2px;
+  }
+  .roadmap-phase .phase-desc {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+  .roadmap-topic {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    transition: all .2s;
+  }
+  .roadmap-topic:active { transform: scale(0.98); }
+  .roadmap-topic .topic-check {
+    width: 22px; height: 22px;
+    border: 2px solid var(--border-strong);
+    border-radius: 6px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all .2s;
+  }
+  .roadmap-topic.done .topic-check {
+    background: var(--green);
+    border-color: var(--green);
+    color: #fff;
+  }
+  .roadmap-topic .topic-text {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .roadmap-topic.done .topic-text {
+    text-decoration: line-through;
+    color: var(--text-dim);
+  }
+  .roadmap-topic .topic-meta {
+    font-size: 11px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
   /* ===== Stats Modal ===== */
   .modal-overlay {
     position: fixed;
@@ -518,7 +574,7 @@
   <div class="tab active" data-tab="home" onclick="switchTab('home')">🏠 首页</div>
   <div class="tab" data-tab="study" onclick="switchTab('study')">📋 学习</div>
   <div class="tab" data-tab="memo" onclick="switchTab('memo')">📝 备忘</div>
-  <div class="tab" data-tab="rest" onclick="switchTab('rest')">🎰 休息</div>
+  <div class="tab" data-tab="coding" onclick="switchTab('coding')">💻 编程</div>
 </nav>
 <div class="panel active" id="panel-home">
   <!-- 模块0：格言 -->
@@ -565,6 +621,8 @@
     </div>
   </section>
   </div>
+</div>
+
 <div class="panel" id="panel-study">
   <!-- 模块4：每日学习任务清单 -->
   <section id="tasks-section">
@@ -595,30 +653,19 @@
     </div>
   </section>
   </div>
-<div class="panel" id="panel-rest">
-  <!-- 模块7：幸运转盘（周一显示） -->
-  <section id="wheel-section">
+<div class="panel" id="panel-coding">
+  <!-- 模块7：编程学习路线图 -->
+  <section id="coding-section">
     <div class="card">
-      <div class="card-title" data-cfg-title="wheel">🎰 休息日幸运转盘</div>
-      <div class="wheel-container">
-        <div class="wheel-canvas-wrap">
-          <div class="wheel-pointer"></div>
-          <canvas id="wheel-canvas" width="280" height="280"></canvas>
-          <div class="wheel-center" onclick="spinWheel()">🎯</div>
-        </div>
-        <button class="btn" onclick="spinWheel()" id="spin-btn" data-cfg-btn="spin">转动转盘</button>
+      <div class="card-title">💻 AI 学习路线图</div>
+      <div class="roadmap-overview">
+        <div class="ov-label">总体进度</div>
+        <div class="ov-value" id="roadmap-percent">0%</div>
+        <div class="ov-bar"><div class="ov-fill" id="roadmap-fill" style="width:0%"></div></div>
       </div>
-      <div class="wheel-options-editor">
-        <div class="wheel-cat-label" data-cfg-wheel="out">出去玩</div>
-        <div id="wheel-out-options"></div>
-        <button class="btn btn-outline btn-sm" onclick="addWheelOption('out')" style="margin-top:6px">+ 添加</button>
-        <div class="wheel-cat-label" data-cfg-wheel="food">吃美食</div>
-        <div id="wheel-food-options"></div>
-        <button class="btn btn-outline btn-sm" onclick="addWheelOption('food')" style="margin-top:6px">+ 添加</button>
-      </div>
+      <div id="roadmap-container"></div>
     </div>
   </section>
-  </div>
 </div>
 
 <!-- 统计已移至首页直接展示 -->
@@ -635,15 +682,6 @@
       <button class="btn btn-outline btn-sm" onclick="closeConfirm()">取消</button>
       <button class="btn btn-red btn-sm" id="confirm-ok-btn">删除</button>
     </div>
-  </div>
-</div>
-
-<!-- 转盘结果弹窗 -->
-<div class="modal-overlay" id="result-overlay">
-  <div class="result-modal" id="result-modal">
-    <div class="result-emoji">🎉</div>
-    <div class="result-text" id="result-text"></div>
-    <button class="btn btn-sm" onclick="closeResult()">好的</button>
   </div>
 </div>
 
@@ -778,15 +816,13 @@ const defaultConfig={
   mainTitle:"南浊 · 个人工作台",
   ruleText:"天行健，君子以自强不息",
   ruleText2:"大道五十，天衍四九，人遁其一",
-  restRuleText:"今日休息日 · 转盘帮你选个快乐方式",
   timeHint:"该休息啦，辛苦一天了 ❤️",
-  tabs:[{id:"home",icon:"🏠",name:"首页"},{id:"study",icon:"📋",name:"学习"},{id:"memo",icon:"📝",name:"备忘"},{id:"rest",icon:"🎰",name:"休息"}],
-  cardTitles:{checkin_stats:"📋 打卡 & 数据总览",timer:"⏱ 番茄计时器",tasks:"📚 每日学习任务",memo:"📌 备忘录",review:"📝 每日复盘",wheel:"🎰 休息日幸运转盘",stats:"📊 学习数据统计"},
-  buttons:{checkin:"今日打卡",stats:"📊 数据统计",timer_start:"▶ 开始学习",timer_stop:"■ 结束计时",memo_add:"+ 新增",review_save:"💾 保存复盘",spin:"转动转盘"},
+  tabs:[{id:"home",icon:"🏠",name:"首页"},{id:"study",icon:"📋",name:"学习"},{id:"memo",icon:"📝",name:"备忘"},{id:"coding",icon:"💻",name:"编程"}],
+  cardTitles:{checkin_stats:"📋 打卡 & 数据总览",timer:"⏱ 番茄计时器",tasks:"📚 每日学习任务",memo:"📌 备忘录",review:"📝 每日复盘",stats:"📊 学习数据统计",coding:"💻 AI 学习路线图"},
+  buttons:{checkin:"今日打卡",stats:"📊 数据统计",timer_start:"▶ 开始学习",timer_stop:"■ 结束计时",memo_add:"+ 新增",review_save:"💾 保存复盘"},
   statLabels:{checkin_total:"累计打卡 {n} 天",timer_count:"今日 {n} 段 · 共 {m} 分钟"},
   statTabs:{day:"日统计",week:"周统计",month:"月统计"},
   statRowLabels:{daily_total:"当日总时长",seg_count:"学习段数",seg_detail:"分段明细",no_data:"今日暂无记录",week_total:"本周总时长",daily_avg:"日均时长",checkin_days:"打卡天数",study_days:"学习天数",trend_title:"时长趋势",month_total:"月度总时长",week_trend:"周度趋势",minute_suffix:"分"},
-  wheelCats:{out:"出去玩",food:"吃美食"},
   taskGroups:[
     {label:'考研',icon:'📖',items:[
       {cat:'英二闪背单词',time:'每日记录',desc:'',isVocab:true},
@@ -829,8 +865,6 @@ function applyConfig(){
   document.querySelectorAll('[data-cfg-btn]').forEach(el=>{const k=el.getAttribute('data-cfg-btn');if(CFG.buttons[k])el.textContent=CFG.buttons[k];});
   // Stat tabs
   document.querySelectorAll('[data-cfg-stattab]').forEach(el=>{const k=el.getAttribute('data-cfg-stattab');if(CFG.statTabs[k])el.textContent=CFG.statTabs[k];});
-  // Wheel cats
-  document.querySelectorAll('[data-cfg-wheel]').forEach(el=>{const k=el.getAttribute('data-cfg-wheel');if(CFG.wheelCats[k])el.textContent=CFG.wheelCats[k];});
 }
 function getTasksDone() { return DB.get('tasks_' + today(), []); }
 function setTasksDone(done) { DB.set('tasks_' + today(), done); }
@@ -995,130 +1029,98 @@ function renderMemos() {
   `).join('');
 }
 
-// ====== Module 7: Lucky Wheel ======
-const defaultWheelOptions = {
-  out: ['citywalk', '骑行', '逛街', '看电影', '猫咖探店', '户外散步'],
-  food: ['火锅', '烤肉', '自助', '滨寿司', '烤鱼', '日料简餐']
-};
-function getWheelOptions() {
-  return DB.get('wheel_options', defaultWheelOptions);
+// ====== Module 7: Coding Roadmap ======
+const roadmapData = [
+  { phase:1, title:'Python 基础', desc:'从零开始，掌握 Python 核心语法', topics:[
+    {id:'py_var', text:'变量与数据类型', meta:'3天'},
+    {id:'py_ctrl', text:'控制流（if / for / while）', meta:'4天'},
+    {id:'py_func', text:'函数与模块', meta:'4天'},
+    {id:'py_file', text:'文件操作与异常处理', meta:'3天'},
+    {id:'py_oop', text:'面向对象编程（类与继承）', meta:'5天'},
+    {id:'py_cert', text:'二级 Python 等级考试', meta:'考证'},
+  ]},
+  { phase:2, title:'Python 进阶', desc:'深入理解 Python 高级特性', topics:[
+    {id:'py_adv1', text:'装饰器与生成器', meta:'4天'},
+    {id:'py_adv2', text:'迭代器与上下文管理器', meta:'3天'},
+    {id:'py_adv3', text:'异步编程（asyncio）', meta:'5天'},
+    {id:'py_adv4', text:'虚拟环境与包管理（pip/venv）', meta:'2天'},
+    {id:'py_pcap', text:'PCAP 认证考试', meta:'考证'},
+  ]},
+  { phase:3, title:'数据分析与 SQL', desc:'数据处理与数据库查询', topics:[
+    {id:'da_numpy', text:'NumPy 数组操作', meta:'4天'},
+    {id:'da_pandas', text:'Pandas 数据处理', meta:'6天'},
+    {id:'da_mpl', text:'Matplotlib 数据可视化', meta:'4天'},
+    {id:'sql_base', text:'SQL 基础查询（SELECT / WHERE）', meta:'3天'},
+    {id:'sql_join', text:'多表关联（JOIN / 子查询）', meta:'4天'},
+    {id:'sql_adv', text:'窗口函数与性能优化', meta:'5天'},
+  ]},
+  { phase:4, title:'机器学习入门', desc:'从经典算法到模型训练', topics:[
+    {id:'ml_concept', text:'机器学习基本概念', meta:'3天'},
+    {id:'ml_sklearn', text:'scikit-learn 实战', meta:'6天'},
+    {id:'ml_feature', text:'特征工程与数据预处理', meta:'4天'},
+    {id:'ml_eval', text:'模型评估与交叉验证', meta:'4天'},
+    {id:'ml_project', text:'完整项目：房价预测 / 分类', meta:'7天'},
+  ]},
+  { phase:5, title:'深度学习', desc:'神经网络与大模型基础', topics:[
+    {id:'dl_math', text:'数学基础（线性代数 / 微积分）', meta:'7天'},
+    {id:'dl_torch', text:'PyTorch 基础', meta:'7天'},
+    {id:'dl_nn', text:'神经网络结构（CNN / RNN）', meta:'7天'},
+    {id:'dl_train', text:'训练技巧与调优', meta:'5天'},
+    {id:'dl_transformer', text:'Transformer 架构原理', meta:'7天'},
+  ]},
+  { phase:6, title:'大模型与 Agent 开发', desc:'LLM 应用与智能体开发', topics:[
+    {id:'llm_api', text:'OpenAI / 智谱 API 调用', meta:'3天'},
+    {id:'llm_prompt', text:'Prompt Engineering 技巧', meta:'4天'},
+    {id:'llm_rag', text:'RAG 检索增强生成', meta:'7天'},
+    {id:'agent_frame', text:'Agent 框架（LangChain / 自研）', meta:'10天'},
+    {id:'agent_deploy', text:'部署与上线（FastAPI + Docker）', meta:'7天'},
+    {id:'pcpp', text:'PCPP1 认证考试', meta:'考证'},
+  ]},
+];
+function getRoadmapProgress() {
+  return DB.get('roadmap_progress', {});
 }
-function saveWheelOptions(opts) {
-  DB.set('wheel_options', opts);
+function saveRoadmapProgress(data) {
+  DB.set('roadmap_progress', data);
 }
-function renderWheelOptions() {
-  const opts = getWheelOptions();
-  for (const cat of ['out', 'food']) {
-    const container = document.getElementById(`wheel-${cat}-options`);
-    container.innerHTML = opts[cat].map((opt, i) => `
-      <div class="wheel-option-row">
-        <input type="text" value="${esc(opt)}" onchange="updateWheelOption('${cat}', ${i}, this.value)">
-        <button class="icon-btn del" onclick="delWheelOption('${cat}', ${i})">×</button>
-      </div>
-    `).join('');
-  }
+function toggleRoadmapTopic(topicId) {
+  const progress = getRoadmapProgress();
+  progress[topicId] = !progress[topicId];
+  saveRoadmapProgress(progress);
+  renderRoadmap();
 }
-function addWheelOption(cat) {
-  const opts = getWheelOptions();
-  opts[cat].push('新选项');
-  saveWheelOptions(opts);
-  renderWheelOptions();
-  drawWheel();
-}
-function updateWheelOption(cat, i, val) {
-  const opts = getWheelOptions();
-  opts[cat][i] = val;
-  saveWheelOptions(opts);
-  drawWheel();
-}
-function delWheelOption(cat, i) {
-  showConfirm('删除这个选项？', () => {
-    const opts = getWheelOptions();
-    opts[cat].splice(i, 1);
-    saveWheelOptions(opts);
-    renderWheelOptions();
-    drawWheel();
-  });
-}
-
-// Wheel drawing & spinning
-let wheelRotation = 0, wheelSpinning = false;
-function getAllWheelItems() {
-  const opts = getWheelOptions();
-  // Randomly pick 5-10 from combined
-  const all = [...opts.out.map(x => ({ cat: '🎯', text: x })), ...opts.food.map(x => ({ cat: '🍽', text: x }))];
-  return all;
-}
-function drawWheel() {
-  const canvas = document.getElementById('wheel-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const items = getAllWheelItems();
-  const n = items.length;
-  if (n === 0) return;
-  const colors = ['#8b7ec8','#6cbf84','#d4a574','#7494d4','#d47474','#a894e0','#5fa876','#c4956c'];
-  const cx = 140, cy = 140, r = 135;
-  ctx.clearRect(0, 0, 280, 280);
-  const angle = (2 * Math.PI) / n;
-  for (let i = 0; i < n; i++) {
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, r, wheelRotation + i * angle, wheelRotation + (i + 1) * angle);
-    ctx.closePath();
-    ctx.fillStyle = colors[i % colors.length];
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    // Text
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(wheelRotation + (i + 0.5) * angle);
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 13px -apple-system, sans-serif';
-    const text = items[i].text.length > 6 ? items[i].text.slice(0,6) : items[i].text;
-    ctx.fillText(text, r - 10, 5);
-    ctx.restore();
-  }
-}
-function spinWheel() {
-  if (wheelSpinning) return;
-  wheelSpinning = true;
-  const items = getAllWheelItems();
-  const n = items.length;
-  const targetIdx = Math.floor(Math.random() * n);
-  const angle = (2 * Math.PI) / n;
-  // Pointer at top (12 o'clock = -PI/2)
-  // Target rotation so that targetIdx segment center aligns with -PI/2
-  const targetRotation = -Math.PI/2 - (targetIdx + 0.5) * angle + (Math.random() - 0.5) * angle * 0.5;
-  // Add extra spins
-  const spins = 5;
-  const finalRotation = targetRotation + spins * 2 * Math.PI;
-  const startRotation = wheelRotation;
-  const duration = 3000;
-  const startTime = Date.now();
-  function animate() {
-    const elapsed = Date.now() - startTime;
-    const t = Math.min(elapsed / duration, 1);
-    const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
-    wheelRotation = startRotation + (finalRotation - startRotation) * eased;
-    drawWheel();
-    if (t < 1) {
-      requestAnimationFrame(animate);
-    } else {
-      wheelSpinning = false;
-      const result = items[targetIdx];
-      document.getElementById('result-text').textContent = `${result.cat} ${result.text}`;
-      document.getElementById('result-overlay').classList.add('show');
-      document.getElementById('result-modal').classList.add('show');
+function renderRoadmap() {
+  const container = document.getElementById('roadmap-container');
+  if (!container) return;
+  const progress = getRoadmapProgress();
+  let totalTopics = 0, doneTopics = 0;
+  let html = '';
+  for (const phase of roadmapData) {
+    const phaseDone = phase.topics.every(t => progress[t.id]);
+    totalTopics += phase.topics.length;
+    const phaseDoneCount = phase.topics.filter(t => progress[t.id]).length;
+    doneTopics += phaseDoneCount;
+    html += `<div class="roadmap-phase${phaseDone ? ' done' : ''}">`;
+    html += `<div class="phase-badge">${phaseDone ? '✓' : phase.phase}</div>`;
+    html += `<div class="phase-card">`;
+    html += `<div class="phase-title">${esc(phase.title)}</div>`;
+    html += `<div class="phase-desc">${esc(phase.desc)}（${phaseDoneCount}/${phase.topics.length}）</div>`;
+    for (const topic of phase.topics) {
+      const isDone = !!progress[topic.id];
+      html += `<div class="roadmap-topic${isDone ? ' done' : ''}" onclick="toggleRoadmapTopic('${topic.id}')">`;
+      html += `<div class="topic-check">${isDone ? '✓' : ''}</div>`;
+      html += `<div class="topic-text">${esc(topic.text)}</div>`;
+      html += `<div class="topic-meta">${esc(topic.meta)}</div>`;
+      html += `</div>`;
     }
+    html += `</div></div>`;
   }
-  animate();
-}
-function closeResult() {
-  document.getElementById('result-overlay').classList.remove('show');
-  document.getElementById('result-modal').classList.remove('show');
+  container.innerHTML = html;
+  const pct = totalTopics > 0 ? Math.round(doneTopics / totalTopics * 100) : 0;
+  const pctEl = document.getElementById('roadmap-percent');
+  const fillEl = document.getElementById('roadmap-fill');
+  if (pctEl) pctEl.textContent = pct + '%';
+  if (fillEl) fillEl.style.width = pct + '%';
 }
 
 // ====== Stats ======
@@ -1255,15 +1257,6 @@ function checkTimeHint() {
   }
 }
 
-// ====== Monday Detection ======
-function applyDayMode() {
-  if (isMonday()) {
-    document.getElementById('rule-text').textContent = CFG.restRuleText||'今日休息日 · 转盘帮你选个快乐方式';
-    switchTab('rest');
-    drawWheel();
-  }
-}
-
 // ====== Utils ======
 function esc(s) {
   const d = document.createElement('div');
@@ -1308,8 +1301,7 @@ renderTasks();
 renderStats();
 loadReview();
 renderMemos();
-renderWheelOptions();
-applyDayMode();
+renderRoadmap();
 checkTimeHint();
 </script>
 </body>
