@@ -166,6 +166,12 @@ textarea.input{resize:vertical;min-height:80px}
 </div>
 <div class="panel" id="p-content">
 <div class="card">
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<button class="btn btn-green" style="flex:1" onclick="saveAllConfig()">💾 保存所有内容</button>
+<button class="btn btn-outline btn-sm" onclick="resetConfig()">↺ 恢复默认</button>
+</div>
+</div>
+<div class="card">
 <div class="card-title">⏱ 每日学习时长修改</div>
 <div class="hint">手动调整本周每天的学习时长（分钟），修改后立即生效。留空则用计时器原始数据。</div>
 <div id="cfg-week-times"></div>
@@ -218,12 +224,6 @@ textarea.input{resize:vertical;min-height:80px}
 <div class="card-title">🔢 总数设置</div>
 <div class="input-row"><label class="label" style="width:80px">数学考点总数</label><input class="input" type="number" id="cfg-mathTotal" style="width:100px" onchange="saveCfgField('mathTotal',parseInt(this.value)||76)"></div>
 <div class="input-row"><label class="label" style="width:80px">单词总页数</label><input class="input" type="number" id="cfg-vocabTotal" style="width:100px" onchange="saveCfgField('vocabTotal',parseInt(this.value)||427)"></div>
-</div>
-<div class="card">
-<div style="display:flex;gap:8px;flex-wrap:wrap">
-<button class="btn btn-green btn-full" onclick="saveAllConfig()">💾 保存所有内容</button>
-<button class="btn btn-outline btn-sm" onclick="resetConfig()">↺ 恢复默认</button>
-</div>
 </div>
 </div>
 <div class="panel" id="p-raw">
