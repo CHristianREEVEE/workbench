@@ -167,7 +167,12 @@ textarea.input{resize:vertical;min-height:80px}
 <div class="panel" id="p-content">
 <div class="card">
 <div class="card-title">⏱ 每日学习时长修改</div>
-<div class="hint">手动调整本周每天的学习时长（分钟），修改后立即生效。留空则用计时器原始数据。</div>
+<div class="hint">手动调整每天的学习时长（分钟），修改后立即生效。留空则用计时器原始数据。</div>
+<div id="cfg-week-nav" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+<button class="btn btn-sm btn-outline" onclick="shiftAdminWeek(-1)" style="min-width:36px">◀</button>
+<span id="cfg-week-label" style="font-size:14px;font-weight:600;color:var(--accent-light)"></span>
+<button class="btn btn-sm btn-outline" onclick="shiftAdminWeek(1)" style="min-width:36px" id="admin-week-next">▶</button>
+</div>
 <div id="cfg-week-times"></div>
 </div>
 <div class="card">
@@ -374,18 +379,37 @@ function renderCfgStatRowLabels(){
   }).join('');
 }
 function updateCfgStatRowLabel(k,val){if(!CFG.statRowLabels)CFG.statRowLabels={};CFG.statRowLabels[k]=val;saveConfigRaw(CFG);toast('已保存 ✅','success')}
+var adminWeekOffset=0;
+function shiftAdminWeek(delta){
+  adminWeekOffset+=delta;
+  if(adminWeekOffset>0)adminWeekOffset=0;
+  renderCfgWeekTimes();
+  renderOverview();
+}
 function renderCfgWeekTimes(){
   var now=new Date();
-  var day=now.getDay()||7;
+  var baseDate=new Date(now);
+  baseDate.setDate(now.getDate()+adminWeekOffset*7);
+  var baseDay=baseDate.getDay()||7;
   var list=document.getElementById('cfg-week-times');
   var overrides=DB.get('manual_time',{})||{};
   var labels=['周一','周二','周三','周四','周五','周六','周日'];
   var dates=[];
   for(var i=1;i<=7;i++){
-    var d=new Date(now);
-    d.setDate(now.getDate()-day+i);
+    var d=new Date(baseDate);
+    d.setDate(baseDate.getDate()-baseDay+i);
     dates.push(d.toISOString().slice(0,10));
   }
+  // Update week label
+  var lbl=document.getElementById('cfg-week-label');
+  if(lbl){
+    var wStart=dates[0]?dates[0].slice(5).replace('-','/'):'';
+    var wEnd=dates[6]?dates[6].slice(5).replace('-','/'):'';
+    var wLabel=adminWeekOffset===0?'本周':adminWeekOffset===-1?'上周':'前'+(-adminWeekOffset)+'周';
+    lbl.textContent=wLabel+' '+wStart+' - '+wEnd;
+  }
+  var nextBtn=document.getElementById('admin-week-next');
+  if(nextBtn){nextBtn.disabled=adminWeekOffset>=0;nextBtn.style.opacity=adminWeekOffset>=0?'0.4':'1'}
   // Also get actual timer data for comparison
   var timerData=DB.get('timer_segments',{});
   var html=dates.map(function(dateStr,i){
@@ -493,10 +517,12 @@ function renderOverview(){
   thtml+='</tbody></table></div>';
   document.getElementById('task-overview').innerHTML=thtml;
   const now=new Date();
-  const dow=now.getDay()||7;
+  const baseDate=new Date(now);
+  baseDate.setDate(now.getDate()+adminWeekOffset*7);
+  const baseDow=baseDate.getDay()||7;
   let days=[];
   for(let i=1;i<=7;i++){
-    const d=new Date(now);d.setDate(now.getDate()-dow+i);
+    const d=new Date(baseDate);d.setDate(baseDate.getDate()-baseDow+i);
     const ds=d.toISOString().slice(0,10);
     const segs=timerData[ds]||[];
     let total;
@@ -506,7 +532,8 @@ function renderOverview(){
   }
   const maxVal=Math.max.apply(null,days.map(function(d){return d.total}).concat([1]));
   const weekTotal=days.reduce(function(s,d){return s+d.total},0);
-  let chtml='<div style="margin-bottom:8px;font-size:13px;color:var(--accent-light)">本周合计：<b>'+fmtDual(weekTotal)+'</b></div>';
+  var wLabel=adminWeekOffset===0?'本周':adminWeekOffset===-1?'上周':'前'+(-adminWeekOffset)+'周';
+  let chtml='<div style="margin-bottom:8px;font-size:13px;color:var(--accent-light)">'+wLabel+'合计：<b>'+fmtDual(weekTotal)+'</b></div>';
   days.forEach(function(d){
     const pct=(d.total/maxVal*100).toFixed(0);
     const dayName=['日','一','二','三','四','五','六'][new Date(d.date+'T00:00:00').getDay()];
