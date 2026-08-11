@@ -1143,11 +1143,18 @@ function renderRoadmap() {
 
 // ====== Stats ======
 let statTab = 'day';
+let statsWeekOffset = 0; // 0=this week, -1=last week, etc.
 function switchStatTab(tab) {
   statTab = tab;
+  statsWeekOffset = 0;
   document.querySelectorAll('#stats-tab-row .tab').forEach((t, i) => {
     t.classList.toggle('active', ['day','week','month'][i] === tab);
   });
+  renderStats();
+}
+function shiftStatsWeek(delta) {
+  statsWeekOffset += delta;
+  if (statsWeekOffset > 0) statsWeekOffset = 0;
   renderStats();
 }
 function getAllTimerData() {
@@ -1161,9 +1168,12 @@ function getStatsData(period) {
     dates = [today()];
   } else if (period === 'week') {
     const day = now.getDay() || 7;
+    const baseDate = new Date(now);
+    baseDate.setDate(now.getDate() + statsWeekOffset * 7);
+    const baseDay = baseDate.getDay() || 7;
     for (let i = 1; i <= 7; i++) {
-      const d = new Date(now);
-      d.setDate(now.getDate() - day + i);
+      const d = new Date(baseDate);
+      d.setDate(baseDate.getDate() - baseDay + i);
       dates.push(d.toISOString().slice(0,10));
     }
   } else {
@@ -1212,7 +1222,17 @@ function renderStats() {
   } else if (statTab === 'week') {
     const activeDays = stats.filter(s => s.total > 0).length;
     const checkinDays = stats.filter(s => checkins.includes(s.date)).length;
-    let html = `<div class="stat-row"><span>${L.week_total||'本周总时长'}</span><b>${fmtDual(totalSec)}</b></div>`;
+    // Week navigation header
+    const wDates = stats.map(s => s.date);
+    const wStart = wDates[0] ? wDates[0].slice(5).replace('-','/') : '';
+    const wEnd = wDates[6] ? wDates[6].slice(5).replace('-','/') : '';
+    const weekLabel = statsWeekOffset === 0 ? '本周' : statsWeekOffset === -1 ? '上周' : `前${-statsWeekOffset}周`;
+    let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">`;
+    html += `<button class="btn btn-sm btn-outline" onclick="shiftStatsWeek(-1)" style="min-width:36px">◀</button>`;
+    html += `<span style="font-size:14px;font-weight:600;color:var(--accent-light)">${weekLabel} ${wStart} - ${wEnd}</span>`;
+    html += `<button class="btn btn-sm btn-outline" onclick="shiftStatsWeek(1)" style="min-width:36px" ${statsWeekOffset>=0?'disabled':''}>▶</button>`;
+    html += `</div>`;
+    html += `<div class="stat-row"><span>${L.week_total||'本周总时长'}</span><b>${fmtDual(totalSec)}</b></div>`;
     html += `<div class="stat-row"><span>${L.daily_avg||'日均时长'}</span><b>${fmtDual(totalSec / 7)}</b></div>`;
     html += `<div class="stat-row"><span>${L.checkin_days||'打卡天数'}</span><b>${checkinDays} / 7</b></div>`;
     html += `<div class="stat-row"><span>${L.study_days||'学习天数'}</span><b>${activeDays} / 7</b></div>`;
