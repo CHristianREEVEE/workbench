@@ -1252,27 +1252,24 @@ function renderStats() {
     let html = `<div class="stat-row"><span>${L.month_total||'月度总时长'}</span><b>${fmtDual(totalSec)}</b></div>`;
     html += `<div class="stat-row"><span>${L.checkin_days||'打卡天数'}</span><b>${checkinDays} 天</b></div>`;
     html += `<div class="stat-row"><span>${L.study_days||'学习天数'}</span><b>${activeDays} 天</b></div>`;
+    // Group by fixed 7-day blocks within the month (Week 1: 1-7, Week 2: 8-14, etc.)
+    const now = new Date();
+    const monthDay = now.getDate(); // today's day-of-month
+    const weekCount = Math.ceil(monthDay / 7); // only show weeks up to today
     const maxVal = Math.max(...stats.map(s => s.total), 1);
-    const weeks = {};
-    const weekOrder = [];
-    stats.forEach(s => {
-      const d = new Date(s.date + 'T00:00:00');
-      const dow = d.getDay() || 7;
-      const mon = new Date(d);
-      mon.setDate(d.getDate() - dow + 1);
-      const sun = new Date(mon);
-      sun.setDate(mon.getDate() + 6);
-      const fmt = dt => (dt.getMonth()+1)+'/'+dt.getDate();
-      const key = fmt(mon)+'-'+fmt(sun);
-      if (!weeks[key]) { weeks[key] = 0; weekOrder.push(key); }
-      weeks[key] += s.total;
-    });
     html += `<div class="stat-chart"><div class="section-label">${L.week_trend||'周度趋势'}</div>`;
-    for (const key of weekOrder) {
-      const val = weeks[key];
+    for (let w = 0; w < weekCount; w++) {
+      const start = w * 7 + 1;
+      const end = Math.min((w + 1) * 7, monthDay);
+      const wStats = stats.filter(s => {
+        const day = parseInt(s.date.slice(8, 10));
+        return day >= start && day <= end;
+      });
+      const val = wStats.reduce((s, x) => s + x.total, 0);
       const pct = (val / maxVal * 100).toFixed(0);
       const h = (val/3600).toFixed(1), mins = Math.floor(val / 60);
-      html += `<div class="stat-bar"><span class="bar-label">${key}</span><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div><span class="bar-value">${h}h · ${mins}${minSuffix}</span></div>`;
+      const label = `第${w+1}周(${start}-${end})`;
+      html += `<div class="stat-bar"><span class="bar-label">${label}</span><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div><span class="bar-value">${h}h · ${mins}${minSuffix}</span></div>`;
     }
     html += '</div>';
     content.innerHTML = html;
