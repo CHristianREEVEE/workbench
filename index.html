@@ -841,9 +841,27 @@ const defaultConfig={
     ]},
   ],
   mathTotal:76,
-  vocabTotal:427
+  vocabTotal:427,
+  configVersion:2
 };
-function loadConfig(){try{const v=localStorage.getItem('workbench_config');return v?JSON.parse(v):JSON.parse(JSON.stringify(defaultConfig))}catch(e){return JSON.parse(JSON.stringify(defaultConfig))}}
+function loadConfig(){
+  try{
+    const v=localStorage.getItem('workbench_config');
+    if(!v) return JSON.parse(JSON.stringify(defaultConfig));
+    const saved=JSON.parse(v);
+    // Force-refresh tabs and cardTitles when config version changes
+    if(!saved.configVersion || saved.configVersion<defaultConfig.configVersion){
+      saved.tabs=defaultConfig.tabs;
+      saved.cardTitles=defaultConfig.cardTitles;
+      saved.buttons=defaultConfig.buttons;
+      saved.configVersion=defaultConfig.configVersion;
+      delete saved.restRuleText;
+      delete saved.wheelCats;
+      localStorage.setItem('workbench_config',JSON.stringify(saved));
+    }
+    return saved;
+  }catch(e){return JSON.parse(JSON.stringify(defaultConfig))}
+}
 const CFG=loadConfig();
 const MATH_TOTAL=CFG.mathTotal;
 const VOCAB_TOTAL=CFG.vocabTotal;
