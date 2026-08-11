@@ -166,12 +166,6 @@ textarea.input{resize:vertical;min-height:80px}
 </div>
 <div class="panel" id="p-content">
 <div class="card">
-<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-<button class="btn btn-green" style="flex:1" onclick="saveAllConfig()">💾 保存所有内容</button>
-<button class="btn btn-outline btn-sm" onclick="resetConfig()">↺ 恢复默认</button>
-</div>
-</div>
-<div class="card">
 <div class="card-title">⏱ 每日学习时长修改</div>
 <div class="hint">手动调整本周每天的学习时长（分钟），修改后立即生效。留空则用计时器原始数据。</div>
 <div id="cfg-week-times"></div>
@@ -181,7 +175,6 @@ textarea.input{resize:vertical;min-height:80px}
 <div class="input-row"><label class="label" style="width:70px">主标题</label><input class="input" id="cfg-mainTitle" style="flex:1" onchange="saveCfgField('mainTitle',this.value)"></div>
 <div class="input-row"><label class="label" style="width:70px">标语1</label><input class="input" id="cfg-ruleText" style="flex:1" onchange="saveCfgField('ruleText',this.value)"></div>
 <div class="input-row"><label class="label" style="width:70px">标语2</label><input class="input" id="cfg-ruleText2" style="flex:1" onchange="saveCfgField('ruleText2',this.value)"></div>
-<div class="input-row"><label class="label" style="width:70px">休息日标语</label><input class="input" id="cfg-restRuleText" style="flex:1" onchange="saveCfgField('restRuleText',this.value)"></div>
 <div class="input-row"><label class="label" style="width:70px">晚间提示</label><input class="input" id="cfg-timeHint" style="flex:1" onchange="saveCfgField('timeHint',this.value)"></div>
 </div>
 <div class="card">
@@ -211,10 +204,6 @@ textarea.input{resize:vertical;min-height:80px}
 <div id="cfg-stat-row-labels"></div>
 </div>
 <div class="card">
-<div class="card-title">🎰 转盘分类</div>
-<div id="cfg-wheel-cats"></div>
-</div>
-<div class="card">
 <div class="card-title">📋 任务组管理</div>
 <div class="hint">管理任务分组、任务名、每日时间、描述。勾选「数学」或「单词」标记特殊任务。</div>
 <div id="cfg-task-groups"></div>
@@ -224,6 +213,12 @@ textarea.input{resize:vertical;min-height:80px}
 <div class="card-title">🔢 总数设置</div>
 <div class="input-row"><label class="label" style="width:80px">数学考点总数</label><input class="input" type="number" id="cfg-mathTotal" style="width:100px" onchange="saveCfgField('mathTotal',parseInt(this.value)||76)"></div>
 <div class="input-row"><label class="label" style="width:80px">单词总页数</label><input class="input" type="number" id="cfg-vocabTotal" style="width:100px" onchange="saveCfgField('vocabTotal',parseInt(this.value)||427)"></div>
+</div>
+<div class="card">
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<button class="btn btn-green" style="flex:1" onclick="saveAllConfig()">💾 保存所有内容</button>
+<button class="btn btn-outline btn-sm" onclick="resetConfig()">↺ 恢复默认</button>
+</div>
 </div>
 </div>
 <div class="panel" id="p-raw">
@@ -273,15 +268,13 @@ const defaultConfig={
   mainTitle:"南浊 · 个人工作台",
   ruleText:"天行健，君子以自强不息",
   ruleText2:"大道五十，天衍四九，人遁其一",
-  restRuleText:"今日休息日 · 转盘帮你选个快乐方式",
   timeHint:"该休息啦，辛苦一天了 ❤️",
-  tabs:[{id:"home",icon:"🏠",name:"首页"},{id:"study",icon:"📋",name:"学习"},{id:"memo",icon:"📝",name:"备忘"},{id:"rest",icon:"🎰",name:"休息"}],
-  cardTitles:{checkin_stats:"📋 打卡 & 数据总览",timer:"⏱ 番茄计时器",tasks:"📚 每日学习任务",memo:"📌 备忘录",review:"📝 每日复盘",wheel:"🎰 休息日幸运转盘",stats:"📊 学习数据统计"},
-  buttons:{checkin:"今日打卡",stats:"📊 数据统计",timer_start:"▶ 开始学习",timer_stop:"■ 结束计时",memo_add:"+ 新增",review_save:"💾 保存复盘",spin:"转动转盘"},
+  tabs:[{id:"home",icon:"🏠",name:"首页"},{id:"study",icon:"📋",name:"学习"},{id:"memo",icon:"📝",name:"备忘"},{id:"coding",icon:"💻",name:"编程"}],
+  cardTitles:{checkin_stats:"📋 打卡 & 数据总览",timer:"⏱ 番茄计时器",tasks:"📚 每日学习任务",memo:"📌 备忘录",review:"📝 每日复盘",stats:"📊 学习数据统计",coding:"💻 AI 学习路线图"},
+  buttons:{checkin:"今日打卡",stats:"📊 数据统计",timer_start:"▶ 开始学习",timer_stop:"■ 结束计时",memo_add:"+ 新增",review_save:"💾 保存复盘"},
   statLabels:{checkin_total:"累计打卡 {n} 天",timer_count:"今日 {n} 段 · 共 {m} 分钟"},
   statTabs:{day:"日统计",week:"周统计",month:"月统计"},
   statRowLabels:{daily_total:"当日总时长",seg_count:"学习段数",seg_detail:"分段明细",no_data:"今日暂无记录",week_total:"本周总时长",daily_avg:"日均时长",checkin_days:"打卡天数",study_days:"学习天数",trend_title:"时长趋势",month_total:"月度总时长",week_trend:"周度趋势",minute_suffix:"分"},
-  wheelCats:{out:"出去玩",food:"吃美食"},
   taskGroups:[
     {label:'考研',icon:'📖',items:[
       {cat:'英二闪背单词',time:'每日记录',desc:'',isVocab:true},
@@ -328,11 +321,10 @@ function renderContentAdmin(){
   document.getElementById('cfg-mainTitle').value=CFG.mainTitle||'';
   document.getElementById('cfg-ruleText').value=CFG.ruleText||'';
   document.getElementById('cfg-ruleText2').value=CFG.ruleText2||'';
-  document.getElementById('cfg-restRuleText').value=CFG.restRuleText||'';
   document.getElementById('cfg-timeHint').value=CFG.timeHint||'';
   document.getElementById('cfg-mathTotal').value=CFG.mathTotal||76;
   document.getElementById('cfg-vocabTotal').value=CFG.vocabTotal||427;
-  renderCfgTabs();renderCfgCardTitles();renderCfgButtons();renderCfgStatLabels();renderCfgStatTabs();renderCfgStatRowLabels();renderCfgWeekTimes();renderCfgWheelCats();renderCfgTaskGroups();
+  renderCfgTabs();renderCfgCardTitles();renderCfgButtons();renderCfgStatLabels();renderCfgStatTabs();renderCfgStatRowLabels();renderCfgWeekTimes();renderCfgTaskGroups();
 }
 function renderCfgTabs(){
   var list=document.getElementById('cfg-tabs-list');
@@ -369,12 +361,6 @@ function renderCfgStatTabs(){
   var list=document.getElementById('cfg-stat-tabs');
   list.innerHTML=Object.keys(CFG.statTabs).map(function(k){
     return '<div class="input-row" style="margin-bottom:6px"><span class="badge purple" style="min-width:100px;text-align:center;font-family:monospace">'+esc(k)+'</span><input class="input" type="text" value="'+esc(CFG.statTabs[k])+'" style="flex:1" onchange="updateCfgKey(\'statTabs\',\''+k+'\',this.value)"></div>';
-  }).join('');
-}
-function renderCfgWheelCats(){
-  var list=document.getElementById('cfg-wheel-cats');
-  list.innerHTML=Object.keys(CFG.wheelCats).map(function(k){
-    return '<div class="input-row" style="margin-bottom:6px"><span class="badge orange" style="min-width:80px;text-align:center;font-family:monospace">'+esc(k)+'</span><input class="input" type="text" value="'+esc(CFG.wheelCats[k])+'" style="flex:1" onchange="updateCfgKey(\'wheelCats\',\''+k+'\',this.value)"></div>';
   }).join('');
 }
 function renderCfgStatRowLabels(){
@@ -456,7 +442,6 @@ function saveAllConfig(){
   CFG.mainTitle=document.getElementById('cfg-mainTitle').value;
   CFG.ruleText=document.getElementById('cfg-ruleText').value;
   CFG.ruleText2=document.getElementById('cfg-ruleText2').value;
-  CFG.restRuleText=document.getElementById('cfg-restRuleText').value;
   CFG.timeHint=document.getElementById('cfg-timeHint').value;
   CFG.mathTotal=Math.max(1,parseInt(document.getElementById('cfg-mathTotal').value)||76);
   CFG.vocabTotal=Math.max(1,parseInt(document.getElementById('cfg-vocabTotal').value)||427);
