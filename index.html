@@ -171,6 +171,12 @@
   }
   .checkin-count { font-size: 14px; color: var(--text-mid); }
   .checkin-count b { font-size: 24px; color: var(--accent-light); }
+  .streak-row { display: flex; justify-content: center; gap: 24px; margin-top: 10px; }
+  .streak-item { text-align: center; }
+  .streak-item .label { font-size: 12px; color: var(--text-dim); margin-bottom: 2px; }
+  .streak-item .value { font-size: 22px; font-weight: 800; }
+  .streak-item .value.cur { color: var(--accent-light); }
+  .streak-item .value.max { color: var(--orange); }
   /* ===== Module 2: Timer ===== */
   .timer-display {
     font-size: 48px;
@@ -593,6 +599,16 @@
         <div class="big-clock" id="big-clock">00:00:00</div>
         <button class="checkin-btn" id="checkin-btn" onclick="toggleCheckin()" data-cfg-btn="checkin">今日打卡</button>
         <div class="checkin-count">累计打卡 <b id="checkin-total">0</b> 天</div>
+        <div class="streak-row">
+          <div class="streak-item">
+            <div class="label">当前连续</div>
+            <div class="value cur" id="streak-current">0</div>
+          </div>
+          <div class="streak-item">
+            <div class="label">最高连续</div>
+            <div class="value max" id="streak-max">0</div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -758,6 +774,40 @@ function updateCheckinUI() {
   if (isToday) { btn.classList.add('done'); btn.textContent = '已打卡'; }
   else { btn.classList.remove('done'); btn.textContent = CFG.buttons.checkin || '今日打卡'; }
   document.getElementById('checkin-total').textContent = checkins.length;
+  // Calculate streaks
+  const sorted = checkins.slice().sort();
+  let curStreak = 0, maxStreak = 0, tmpStreak = 0;
+  let prev = null;
+  for (const d of sorted) {
+    if (prev === null) {
+      tmpStreak = 1;
+    } else {
+      const diff = (new Date(d) - new Date(prev)) / 86400000;
+      if (diff === 1) tmpStreak++;
+      else if (diff === 0) {} // same day, skip
+      else tmpStreak = 1;
+    }
+    if (tmpStreak > maxStreak) maxStreak = tmpStreak;
+    prev = d;
+  }
+  // Current streak: count backwards from today (or yesterday if not checked in today)
+  const t = today();
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  if (checkins.includes(t)) {
+    curStreak = tmpStreak; // if today checked in, current streak is the last run
+  } else if (checkins.includes(yesterday)) {
+    // find streak ending yesterday
+    curStreak = 0;
+    let checkDate = yesterday;
+    while (checkins.includes(checkDate)) {
+      curStreak++;
+      checkDate = new Date(new Date(checkDate) - 86400000).toISOString().slice(0, 10);
+    }
+  } else {
+    curStreak = 0;
+  }
+  document.getElementById('streak-current').textContent = curStreak;
+  document.getElementById('streak-max').textContent = maxStreak;
 }
 
 // ====== Module 2: Timer ======
