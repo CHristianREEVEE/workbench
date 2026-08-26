@@ -878,11 +878,12 @@ function stopTimer() {
   lastShownSec = -1;
   updateAdjustUI();
   updateTimerCount();
+  if (statTab === 'day') renderStats(); // 结束计时后底部统计立刻落账
 }
 function updateTimerDisplay() {
   const elapsed = Math.floor((Date.now() - timerStart) / 1000);
   document.getElementById('timer-display').textContent = fmtTime(elapsed);
-  if (elapsed !== lastShownSec) { lastShownSec = elapsed; updateTimerCount(); } // 今日统计实时同步
+  if (elapsed !== lastShownSec) { lastShownSec = elapsed; updateTimerCount(); if (statTab === 'day') renderStats(); } // 今日统计实时同步
 }
 // 修正按钮：计时中直接平移起点；未计时先攒补时，点开始时接着算
 function adjustTimer(min) {
@@ -1333,15 +1334,21 @@ function renderStats() {
   if (statTab === 'day') {
     const todayStats = stats[0];
     const segs = todayStats.segments;
-    let html = `<div class="stat-row"><span>${L.daily_total||'当日总时长'}</span><b>${fmtDual(todayStats.total)}</b></div>`;
-    html += `<div class="stat-row"><span>${L.seg_count||'学习段数'}</span><b>${segs.length} 段</b></div>`;
+    const liveSec = timerRunning ? Math.floor((Date.now() - timerStart) / 1000) : 0; // 进行中的时间
+    let html = `<div class="stat-row"><span>${L.daily_total||'当日总时长'}</span><b>${fmtDual(todayStats.total + liveSec)}</b></div>`;
+    html += `<div class="stat-row"><span>${L.seg_count||'学习段数'}</span><b>${segs.length + (liveSec>0?1:0)} 段</b></div>`;
     html += `<div class="section-label" style="margin-top:12px">${L.seg_detail||'分段明细'}</div>`;
     if (segs.length) {
       html += segs.map(s => {
         const st = new Date(s.start), en = new Date(s.end);
         return `<div class="stat-row"><span>${st.toTimeString().slice(0,5)}-${en.toTimeString().slice(0,5)}</span><b>${fmtMin(s.duration)}</b></div>`;
       }).join('');
-    } else {
+    }
+    if (liveSec > 0) {
+      const stT = new Date(timerStart).toTimeString().slice(0,5);
+      html += `<div class="stat-row"><span>${stT}-当前</span><b style="color:var(--orange)">⏱ ${fmtMin(liveSec)} 进行中</b></div>`;
+    }
+    if (!segs.length && !liveSec) {
       html += `<div class="empty">${L.no_data||'今日暂无记录'}</div>`;
     }
     content.innerHTML = html;
