@@ -912,8 +912,8 @@ function updateTimerCount() {
   const segs = getTodaySegments();
   let totalSec = segs.reduce((s, x) => s + x.duration, 0);
   if (timerRunning) totalSec += Math.floor((Date.now() - timerStart) / 1000); // 进行中的时间也计入今日
-  const fmt = CFG.statLabels.timer_count || '今日 {n} 段 · 共 {m} 分钟';
-  document.getElementById('timer-count').textContent = fmt.replace('{n}',segs.length).replace('{m}',fmtDual(totalSec));
+  const fmt = CFG.statLabels.timer_count || '今日 {n} 段 · 共 {m}';
+  document.getElementById('timer-count').textContent = fmt.replace('{n}',segs.length).replace('{m}',fmtDual(totalSec)).replace('分钟 分钟', '分钟');
 }
 // 恢复被浏览器杀掉的计时：页面加载时若上次仍在计时，从落盘的时间戳续算
 function restoreTimer() {
@@ -946,7 +946,7 @@ const defaultConfig={
   tabs:[{id:"home",icon:"🏠",name:"首页"},{id:"study",icon:"📋",name:"学习"},{id:"memo",icon:"📝",name:"备忘"},{id:"coding",icon:"💻",name:"编程"}],
   cardTitles:{checkin_stats:"📋 打卡 & 数据总览",timer:"⏱ 番茄计时器",tasks:"📚 每日学习任务",memo:"📌 备忘录",review:"📝 每日复盘",stats:"📊 学习数据统计",coding:"💻 AI 学习路线图"},
   buttons:{checkin:"今日打卡",stats:"📊 数据统计",timer_start:"▶ 开始学习",timer_stop:"■ 结束计时",memo_add:"+ 新增",review_save:"💾 保存复盘"},
-  statLabels:{checkin_total:"累计打卡 {n} 天",timer_count:"今日 {n} 段 · 共 {m} 分钟"},
+  statLabels:{checkin_total:"累计打卡 {n} 天",timer_count:"今日 {n} 段 · 共 {m}"},
   statTabs:{day:"日统计",week:"周统计",month:"月统计"},
   statRowLabels:{daily_total:"当日总时长",seg_count:"学习段数",seg_detail:"分段明细",no_data:"今日暂无记录",week_total:"本周总时长",daily_avg:"日均时长",checkin_days:"打卡天数",study_days:"学习天数",trend_title:"时长趋势",month_total:"月度总时长",week_trend:"周度趋势",minute_suffix:"分"},
   taskGroups:[
