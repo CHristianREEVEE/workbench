@@ -190,6 +190,20 @@
   .timer-display.running { color: var(--green); }
   @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
   .timer-btns { display: flex; gap: 10px; justify-content: center; }
+  .timer-adjust { display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 10px; }
+  .ta-btn {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 5px 11px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .ta-btn:active { transform: scale(0.94); }
+  .ta-pending { text-align: center; margin-top: 6px; font-size: 13px; color: var(--orange); font-weight: 600; min-height: 18px; }
   /* ===== Module 3 & 4: Checklist ===== */
   .task-group-label {
     font-size: 13px;
@@ -621,6 +635,14 @@
         <button class="btn btn-green" id="timer-start" onclick="startTimer()" data-cfg-btn="timer_start">▶ 开始学习</button>
         <button class="btn btn-red" id="timer-stop" onclick="stopTimer()" disabled data-cfg-btn="timer_stop">■ 结束计时</button>
       </div>
+      <div class="timer-adjust">
+        <span style="font-size:12px;color:var(--text-dim)">修正</span>
+        <button class="ta-btn" onclick="adjustTimer(-10)">−10分</button>
+        <button class="ta-btn" onclick="adjustTimer(-1)">−1分</button>
+        <button class="ta-btn" onclick="adjustTimer(1)">+1分</button>
+        <button class="ta-btn" onclick="adjustTimer(10)">+10分</button>
+      </div>
+      <div id="ta-pending" class="ta-pending"></div>
       <div style="text-align:center;margin-top:8px;font-size:13px;color:var(--text-dim)" id="timer-count">今日 0 段 · 共 0 分钟</div>
     </div>
   </section>
@@ -812,6 +834,7 @@ function updateCheckinUI() {
 
 // ====== Module 2: Timer ======
 let timerRunning = false, timerStart = 0, timerInterval = null, todaySegments = [];
+let timerAdjustSec = 0, lastShownSec = -1;
 
 function getTodaySegments() {
   const data = DB.get('timer_segments', {});
@@ -825,11 +848,13 @@ function saveTodaySegments(segs) {
 function startTimer() {
   if (timerRunning) return;
   timerRunning = true;
-  timerStart = Date.now();
+  timerStart = Date.now() - timerAdjustSec * 1000; // 带上补时继续
+  timerAdjustSec = 0;
   DB.set('timer_state', { running: true, start: timerStart });
   document.getElementById('timer-start').disabled = true;
   document.getElementById('timer-stop').disabled = false;
   document.getElementById('timer-display').classList.add('running');
+  updateAdjustUI();
   timerInterval = setInterval(updateTimerDisplay, 100);
 }
 function stopTimer() {
@@ -850,15 +875,43 @@ function stopTimer() {
   document.getElementById('timer-stop').disabled = true;
   document.getElementById('timer-display').classList.remove('running');
   document.getElementById('timer-display').textContent = '00:00:00';
+  lastShownSec = -1;
+  updateAdjustUI();
   updateTimerCount();
 }
 function updateTimerDisplay() {
   const elapsed = Math.floor((Date.now() - timerStart) / 1000);
   document.getElementById('timer-display').textContent = fmtTime(elapsed);
+  if (elapsed !== lastShownSec) { lastShownSec = elapsed; updateTimerCount(); } // 今日统计实时同步
+}
+// 修正按钮：计时中直接平移起点；未计时先攒补时，点开始时接着算
+function adjustTimer(min) {
+  const delta = min * 60;
+  if (timerRunning) {
+    timerStart -= delta * 1000; // +10分 => 起点前移10分钟
+    if (Date.now() - timerStart < 0) timerStart = Date.now();
+    DB.set('timer_state', { running: true, start: timerStart });
+    lastShownSec = -1;
+    updateTimerDisplay();
+    toast(`已${min > 0 ? '加' : '减'} ${Math.abs(min)} 分钟`, 'success');
+  } else {
+    timerAdjustSec = Math.max(0, timerAdjustSec + delta);
+    document.getElementById('timer-display').textContent = fmtTime(timerAdjustSec);
+    updateAdjustUI();
+  }
+}
+function updateAdjustUI() {
+  const el = document.getElementById('ta-pending');
+  if (!timerRunning && timerAdjustSec > 0) {
+    el.textContent = `已补 ${fmtMin(timerAdjustSec)}，点开始继续`;
+  } else {
+    el.textContent = '';
+  }
 }
 function updateTimerCount() {
   const segs = getTodaySegments();
-  const totalSec = segs.reduce((s, x) => s + x.duration, 0);
+  let totalSec = segs.reduce((s, x) => s + x.duration, 0);
+  if (timerRunning) totalSec += Math.floor((Date.now() - timerStart) / 1000); // 进行中的时间也计入今日
   const fmt = CFG.statLabels.timer_count || '今日 {n} 段 · 共 {m} 分钟';
   document.getElementById('timer-count').textContent = fmt.replace('{n}',segs.length).replace('{m}',fmtDual(totalSec));
 }
