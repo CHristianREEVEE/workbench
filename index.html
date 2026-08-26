@@ -826,6 +826,7 @@ function startTimer() {
   if (timerRunning) return;
   timerRunning = true;
   timerStart = Date.now();
+  DB.set('timer_state', { running: true, start: timerStart });
   document.getElementById('timer-start').disabled = true;
   document.getElementById('timer-stop').disabled = false;
   document.getElementById('timer-display').classList.add('running');
@@ -835,6 +836,7 @@ function stopTimer() {
   if (!timerRunning) return;
   timerRunning = false;
   clearInterval(timerInterval);
+  DB.set('timer_state', { running: false, start: 0 });
   const elapsed = Math.floor((Date.now() - timerStart) / 1000);
   if (elapsed >= 60) {
     const segs = getTodaySegments();
@@ -860,6 +862,27 @@ function updateTimerCount() {
   const fmt = CFG.statLabels.timer_count || '今日 {n} 段 · 共 {m} 分钟';
   document.getElementById('timer-count').textContent = fmt.replace('{n}',segs.length).replace('{m}',fmtDual(totalSec));
 }
+// 恢复被浏览器杀掉的计时：页面加载时若上次仍在计时，从落盘的时间戳续算
+function restoreTimer() {
+  const st = DB.get('timer_state', null);
+  if (!st || !st.running || !st.start) return;
+  timerRunning = true;
+  timerStart = st.start;
+  document.getElementById('timer-start').disabled = true;
+  document.getElementById('timer-stop').disabled = false;
+  document.getElementById('timer-display').classList.add('running');
+  updateTimerDisplay();
+  timerInterval = setInterval(updateTimerDisplay, 100);
+  const elapsed = Math.floor((Date.now() - timerStart) / 1000);
+  if (elapsed >= 60) toast(`页面重载，计时已恢复，本次已进行 ${fmtMin(elapsed)}`, 'success');
+}
+// 从后台切回前台的瞬间立即校准显示，不等节流定时器
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && timerRunning) updateTimerDisplay();
+});
+window.addEventListener('pageshow', () => {
+  if (timerRunning) updateTimerDisplay();
+});
 
 // ====== Module 4: Study Tasks ======
 const defaultConfig={
@@ -1382,6 +1405,7 @@ setInterval(updateClock, 1000);
 applyConfig();
 updateCheckinUI();
 updateTimerCount();
+restoreTimer();
 renderTasks();
 renderStats();
 loadReview();
