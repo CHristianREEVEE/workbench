@@ -1271,9 +1271,13 @@ function renderRoadmap() {
 // ====== Stats ======
 let statTab = 'day';
 let statsWeekOffset = 0; // 0=this week, -1=last week, etc.
+let statsDayOffset = 0; // 0=today, -1=yesterday, etc.
+let statsMonthOffset = 0; // 0=this month, -1=last month, etc.
 function switchStatTab(tab) {
   statTab = tab;
   statsWeekOffset = 0;
+  statsDayOffset = 0;
+  statsMonthOffset = 0;
   document.querySelectorAll('#stats-tab-row .tab').forEach((t, i) => {
     t.classList.toggle('active', ['day','week','month'][i] === tab);
   });
@@ -1284,6 +1288,16 @@ function shiftStatsWeek(delta) {
   if (statsWeekOffset > 0) statsWeekOffset = 0;
   renderStats();
 }
+function shiftStatsDay(delta) {
+  statsDayOffset += delta;
+  if (statsDayOffset > 0) statsDayOffset = 0;
+  renderStats();
+}
+function shiftStatsMonth(delta) {
+  statsMonthOffset += delta;
+  if (statsMonthOffset > 0) statsMonthOffset = 0;
+  renderStats();
+}
 function getAllTimerData() {
   return DB.get('timer_segments', {});
 }
@@ -1292,7 +1306,9 @@ function getStatsData(period) {
   const now = new Date();
   let dates = [];
   if (period === 'day') {
-    dates = [today()];
+    const d = new Date();
+    d.setDate(d.getDate() + statsDayOffset);
+    dates = [d.toISOString().slice(0,10)];
   } else if (period === 'week') {
     const day = now.getDay() || 7;
     const baseDate = new Date(now);
@@ -1304,7 +1320,8 @@ function getStatsData(period) {
       dates.push(d.toISOString().slice(0,10));
     }
   } else {
-    const y = now.getFullYear(), m = now.getMonth();
+    const base = new Date(now.getFullYear(), now.getMonth() + statsMonthOffset, 1);
+    const y = base.getFullYear(), m = base.getMonth();
     const days = new Date(y, m + 1, 0).getDate();
     for (let i = 1; i <= days; i++) {
       dates.push(`${y}-${String(m+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`);
@@ -1334,8 +1351,16 @@ function renderStats() {
   if (statTab === 'day') {
     const todayStats = stats[0];
     const segs = todayStats.segments;
-    const liveSec = timerRunning ? Math.floor((Date.now() - timerStart) / 1000) : 0; // 进行中的时间
-    let html = `<div class="stat-row"><span>${L.daily_total||'当日总时长'}</span><b>${fmtDual(todayStats.total + liveSec)}</b></div>`;
+    const liveSec = (statsDayOffset === 0 && timerRunning) ? Math.floor((Date.now() - timerStart) / 1000) : 0; // 进行中的时间（只属于今天）
+    // Day navigation header
+    const dLabel = statsDayOffset === 0 ? '今日' : statsDayOffset === -1 ? '昨日' : `前${-statsDayOffset}天`;
+    const dShort = todayStats.date.slice(5).replace('-','/');
+    let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">`;
+    html += `<button class="btn btn-sm btn-outline" onclick="shiftStatsDay(-1)" style="min-width:36px">◀</button>`;
+    html += `<span style="font-size:14px;font-weight:600;color:var(--accent-light)">${dLabel} ${dShort}（周${'日一二三四五六'[new Date(todayStats.date + 'T12:00:00').getDay()]}）</span>`;
+    html += `<button class="btn btn-sm btn-outline" onclick="shiftStatsDay(1)" style="min-width:36px" ${statsDayOffset>=0?'disabled':''}>▶</button>`;
+    html += `</div>`;
+    html += `<div class="stat-row"><span>${L.daily_total||'当日总时长'}</span><b>${fmtDual(todayStats.total + liveSec)}</b></div>`;
     html += `<div class="stat-row"><span>${L.seg_count||'学习段数'}</span><b>${segs.length + (liveSec>0?1:0)} 段</b></div>`;
     html += `<div class="section-label" style="margin-top:12px">${L.seg_detail||'分段明细'}</div>`;
     if (segs.length) {
@@ -1349,7 +1374,7 @@ function renderStats() {
       html += `<div class="stat-row"><span>${stT}-当前</span><b style="color:var(--orange)">⏱ ${fmtMin(liveSec)} 进行中</b></div>`;
     }
     if (!segs.length && !liveSec) {
-      html += `<div class="empty">${L.no_data||'今日暂无记录'}</div>`;
+      html += `<div class="empty">${statsDayOffset === 0 ? (L.no_data||'今日暂无记录') : '当日暂无记录'}</div>`;
     }
     content.innerHTML = html;
   } else if (statTab === 'week') {
@@ -1382,13 +1407,23 @@ function renderStats() {
   } else {
     const activeDays = stats.filter(s => s.total > 0).length;
     const checkinDays = stats.filter(s => checkins.includes(s.date)).length;
-    let html = `<div class="stat-row"><span>${L.month_total||'月度总时长'}</span><b>${fmtDual(totalSec)}</b></div>`;
+    // Month navigation header
+    const mBase = new Date();
+    const mTarget = new Date(mBase.getFullYear(), mBase.getMonth() + statsMonthOffset, 1);
+    const mLabel = statsMonthOffset === 0 ? '本月' : statsMonthOffset === -1 ? '上月' : `${mTarget.getFullYear()}年${mTarget.getMonth()+1}月`;
+    let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">`;
+    html += `<button class="btn btn-sm btn-outline" onclick="shiftStatsMonth(-1)" style="min-width:36px">◀</button>`;
+    html += `<span style="font-size:14px;font-weight:600;color:var(--accent-light)">${mLabel} ${mTarget.getFullYear()}/${String(mTarget.getMonth()+1).padStart(2,'0')}</span>`;
+    html += `<button class="btn btn-sm btn-outline" onclick="shiftStatsMonth(1)" style="min-width:36px" ${statsMonthOffset>=0?'disabled':''}>▶</button>`;
+    html += `</div>`;
+    html += `<div class="stat-row"><span>${L.month_total||'月度总时长'}</span><b>${fmtDual(totalSec)}</b></div>`;
     html += `<div class="stat-row"><span>${L.checkin_days||'打卡天数'}</span><b>${checkinDays} 天</b></div>`;
     html += `<div class="stat-row"><span>${L.study_days||'学习天数'}</span><b>${activeDays} 天</b></div>`;
     // Group by fixed 7-day blocks within the month (Week 1: 1-7, Week 2: 8-14, etc.)
     const now = new Date();
-    const monthDay = now.getDate(); // today's day-of-month
-    const weekCount = Math.ceil(monthDay / 7); // only show weeks up to today
+    const daysInTargetMonth = new Date(mTarget.getFullYear(), mTarget.getMonth() + 1, 0).getDate();
+    const monthDay = statsMonthOffset === 0 ? now.getDate() : daysInTargetMonth; // 本月显示到今天，历史月显示整月
+    const weekCount = Math.ceil(monthDay / 7);
     const maxVal = Math.max(...stats.map(s => s.total), 1);
     html += `<div class="stat-chart"><div class="section-label">${L.week_trend||'周度趋势'}</div>`;
     for (let w = 0; w < weekCount; w++) {
