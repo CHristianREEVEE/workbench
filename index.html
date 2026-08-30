@@ -644,6 +644,7 @@
       </div>
       <div id="ta-pending" class="ta-pending"></div>
       <div style="text-align:center;margin-top:8px;font-size:13px;color:var(--text-dim)" id="timer-count">今日 0 段 · 共 0 分钟</div>
+      <div style="text-align:center;margin-top:6px;font-size:13px;font-weight:600;color:#c07f00" id="timer-record"></div>
     </div>
   </section>
   <!-- 模块3：学习数据统计（直接展示） -->
@@ -915,6 +916,31 @@ function updateTimerCount() {
   if (timerRunning) totalSec += Math.floor((Date.now() - timerStart) / 1000); // 进行中的时间也计入今日
   const fmt = CFG.statLabels.timer_count || '今日 {n} 段 · 共 {m}';
   document.getElementById('timer-count').textContent = fmt.replace('{n}',segs.length).replace('{m}',fmtDual(totalSec)).replace('分钟 分钟', '分钟');
+  updateRecordBadge();
+}
+// 历史最长纪录：全期单日学习时长之最；今天刷新纪录时高亮
+function fmtRec(s) { return s >= 3600 ? (s/3600).toFixed(1) + '小时' : Math.round(s/60) + '分钟'; }
+function updateRecordBadge() {
+  const el = document.getElementById('timer-record');
+  if (!el) return;
+  const data = DB.get('timer_segments', {});
+  let bestDate = '', bestSec = 0;
+  for (const d in data) {
+    if (!Array.isArray(data[d])) continue;
+    const t = data[d].reduce((a, x) => a + (x.duration || 0), 0);
+    if (t > bestSec) { bestSec = t; bestDate = d; }
+  }
+  const segs = data[today()] || [];
+  let todaySec = segs.reduce((a, x) => a + (x.duration || 0), 0);
+  if (timerRunning) todaySec += Math.floor((Date.now() - timerStart) / 1000);
+  if (todaySec > bestSec) { bestSec = todaySec; bestDate = today(); }
+  if (bestSec < 60) { el.textContent = ''; return; }
+  const parts = bestDate.split('-');
+  const isToday = bestDate === today();
+  el.textContent = isToday
+    ? '🏆 今日 ' + fmtRec(bestSec) + ' —— 历史新高！'
+    : '🏆 历史最长：' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日 · ' + fmtRec(bestSec);
+  el.style.color = isToday ? '#e6a23c' : '#c07f00';
 }
 // 恢复被浏览器杀掉的计时：页面加载时若上次仍在计时，从落盘的时间戳续算
 function restoreTimer() {
