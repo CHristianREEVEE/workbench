@@ -352,6 +352,28 @@
   }
   .memo-actions .icon-btn:active { transform: scale(0.9); }
   .memo-actions .del { color: var(--red); }
+
+/* ===== 转盘 ===== */
+.wheel-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.wheel-tabs .wtab {
+  flex: 1; text-align: center; padding: 8px 4px; font-size: 13px; font-weight: 600;
+  border-radius: 8px; cursor: pointer; color: var(--text-dim);
+  background: rgba(255,255,255,.04); border: 1px solid transparent; transition: all .2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.wheel-tabs .wtab.active { color: var(--accent-light); background: var(--accent-glow); border-color: var(--accent); }
+.wheel-box { position: relative; display: flex; flex-direction: column; align-items: center; }
+#wheelCanvas { max-width: 100%; }
+.wheel-pointer {
+  position: absolute; top: -2px; left: 50%; transform: translateX(-50%);
+  font-size: 22px; color: var(--red); z-index: 2; text-shadow: 0 1px 4px rgba(0,0,0,.5);
+}
+.wheel-result {
+  margin-top: 12px; font-size: 17px; font-weight: 800; color: var(--accent-light);
+  min-height: 26px; text-align: center;
+}
+.wheel-result.big { animation: wheelPop .4s ease; }
+@keyframes wheelPop { 0%{transform:scale(.6);opacity:0} 60%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
   /* ===== Module 7: Coding Roadmap ===== */
   .roadmap-overview {
     text-align: center;
@@ -593,8 +615,8 @@
 <nav class="tabs" id="tabs">
   <div class="tab active" data-tab="home" onclick="switchTab('home')">🏠 首页</div>
   <div class="tab" data-tab="study" onclick="switchTab('study')">📋 学习</div>
-  <div class="tab" data-tab="memo" onclick="switchTab('memo')">📝 备忘</div>
-  <div class="tab" data-tab="coding" onclick="switchTab('coding')">💻 编程</div>
+  <div class="tab" data-tab="memo" onclick="switchTab('memo')">⚡ 速记</div>
+  <div class="tab" data-tab="coding" onclick="switchTab('coding')">🎡 转盘</div>
 </nav>
 <div class="panel active" id="panel-home">
   <!-- 模块0：格言 -->
@@ -675,9 +697,10 @@
   <!-- 模块6：备忘录 -->
   <section>
     <div class="card">
-      <div class="card-title" data-cfg-title="memo">📌 备忘录</div>
+      <div class="card-title" data-cfg-title="memo">⚡ 知识库速记 <span style="font-size:11px;font-weight:400;color:var(--text-dim)">——想法先进这里，周日上传归档</span></div>
       <div class="memo-input-row">
-        <input type="text" id="memo-input" placeholder="输入备忘内容..." onkeydown="if(event.key==='Enter')addMemo()">
+        <input type="text" id="memo-input" placeholder="想到什么记什么，周日一起上传知识库..." onkeydown="if(event.key==='Enter')addMemo()">
+        <button class="btn btn-sm" id="voice-btn" onclick="toggleVoice()" style="font-size:16px;line-height:1" title="语音输入">🎙️</button>
         <button class="btn btn-sm" onclick="addMemo()" data-cfg-btn="memo_add">+ 新增</button>
       </div>
       <div id="memo-list"></div>
@@ -693,16 +716,25 @@
   </section>
   </div>
 <div class="panel" id="panel-coding">
-  <!-- 模块7：编程学习路线图 -->
+  <!-- 模块7：转盘 -->
   <section id="coding-section">
     <div class="card">
-      <div class="card-title">💻 AI 学习路线图</div>
-      <div class="roadmap-overview">
-        <div class="ov-label">总体进度</div>
-        <div class="ov-value" id="roadmap-percent">0%</div>
-        <div class="ov-bar"><div class="ov-fill" id="roadmap-fill" style="width:0%"></div></div>
+      <div class="card-title">🎡 决策转盘</div>
+      <div class="wheel-tabs" id="wheel-tabs">
+        <div class="wtab active" data-w="travel" onclick="switchWheel('travel')">🏙️ 旅游城市</div>
+        <div class="wtab" data-w="spot" onclick="switchWheel('spot')">📸 旅游景点</div>
+        <div class="wtab" data-w="food" onclick="switchWheel('food')">🍜 吃什么</div>
       </div>
-      <div id="roadmap-container"></div>
+      <div class="wheel-box">
+        <canvas id="wheelCanvas" width="340" height="340"></canvas>
+        <div class="wheel-pointer">▼</div>
+        <div class="wheel-result" id="wheel-result">点击转盘开始</div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:14px">
+        <button class="btn" onclick="spinWheel()">🎲 转！</button>
+        <button class="btn btn-outline" onclick="resetWheel()">重置</button>
+        <button class="btn btn-outline" onclick="editWheelItems()">✏️ 编辑选项</button>
+      </div>
     </div>
   </section>
 </div>
@@ -970,8 +1002,8 @@ const defaultConfig={
   ruleText:"天行健，君子以自强不息",
   ruleText2:"大道五十，天衍四九，人遁其一",
   timeHint:"该休息啦，辛苦一天了 ❤️",
-  tabs:[{id:"home",icon:"🏠",name:"首页"},{id:"study",icon:"📋",name:"学习"},{id:"memo",icon:"📝",name:"备忘"},{id:"coding",icon:"💻",name:"编程"}],
-  cardTitles:{checkin_stats:"📋 打卡 & 数据总览",timer:"⏱ 番茄计时器",tasks:"📚 每日学习任务",memo:"📌 备忘录",review:"📝 每日复盘",stats:"📊 学习数据统计",coding:"💻 AI 学习路线图"},
+  tabs:[{id:"home",icon:"🏠",name:"首页"},{id:"study",icon:"📋",name:"学习"},{id:"memo",icon:"⚡",name:"速记"},{id:"coding",icon:"🎡",name:"转盘"}],
+  cardTitles:{checkin_stats:"📋 打卡 & 数据总览",timer:"⏱ 番茄计时器",tasks:"📚 每日学习任务",memo:"⚡ 知识库速记",review:"📝 每日复盘",stats:"📊 学习数据统计",coding:"🎡 决策转盘"},
   buttons:{checkin:"今日打卡",stats:"📊 数据统计",timer_start:"▶ 开始学习",timer_stop:"■ 结束计时",memo_add:"+ 新增",review_save:"💾 保存复盘"},
   statLabels:{checkin_total:"累计打卡 {n} 天",timer_count:"今日 {n} 段 · 共 {m}"},
   statTabs:{day:"日统计",week:"周统计",month:"月统计"},
@@ -1200,98 +1232,163 @@ function renderMemos() {
   `).join('');
 }
 
-// ====== Module 7: Coding Roadmap ======
-const roadmapData = [
-  { phase:1, title:'Python 基础', desc:'从零开始，掌握 Python 核心语法', topics:[
-    {id:'py_var', text:'变量与数据类型', meta:'3天'},
-    {id:'py_ctrl', text:'控制流（if / for / while）', meta:'4天'},
-    {id:'py_func', text:'函数与模块', meta:'4天'},
-    {id:'py_file', text:'文件操作与异常处理', meta:'3天'},
-    {id:'py_oop', text:'面向对象编程（类与继承）', meta:'5天'},
-    {id:'py_cert', text:'二级 Python 等级考试', meta:'考证'},
-  ]},
-  { phase:2, title:'Python 进阶', desc:'深入理解 Python 高级特性', topics:[
-    {id:'py_adv1', text:'装饰器与生成器', meta:'4天'},
-    {id:'py_adv2', text:'迭代器与上下文管理器', meta:'3天'},
-    {id:'py_adv3', text:'异步编程（asyncio）', meta:'5天'},
-    {id:'py_adv4', text:'虚拟环境与包管理（pip/venv）', meta:'2天'},
-    {id:'py_pcap', text:'PCAP 认证考试', meta:'考证'},
-  ]},
-  { phase:3, title:'数据分析与 SQL', desc:'数据处理与数据库查询', topics:[
-    {id:'da_numpy', text:'NumPy 数组操作', meta:'4天'},
-    {id:'da_pandas', text:'Pandas 数据处理', meta:'6天'},
-    {id:'da_mpl', text:'Matplotlib 数据可视化', meta:'4天'},
-    {id:'sql_base', text:'SQL 基础查询（SELECT / WHERE）', meta:'3天'},
-    {id:'sql_join', text:'多表关联（JOIN / 子查询）', meta:'4天'},
-    {id:'sql_adv', text:'窗口函数与性能优化', meta:'5天'},
-  ]},
-  { phase:4, title:'机器学习入门', desc:'从经典算法到模型训练', topics:[
-    {id:'ml_concept', text:'机器学习基本概念', meta:'3天'},
-    {id:'ml_sklearn', text:'scikit-learn 实战', meta:'6天'},
-    {id:'ml_feature', text:'特征工程与数据预处理', meta:'4天'},
-    {id:'ml_eval', text:'模型评估与交叉验证', meta:'4天'},
-    {id:'ml_project', text:'完整项目：房价预测 / 分类', meta:'7天'},
-  ]},
-  { phase:5, title:'深度学习', desc:'神经网络与大模型基础', topics:[
-    {id:'dl_math', text:'数学基础（线性代数 / 微积分）', meta:'7天'},
-    {id:'dl_torch', text:'PyTorch 基础', meta:'7天'},
-    {id:'dl_nn', text:'神经网络结构（CNN / RNN）', meta:'7天'},
-    {id:'dl_train', text:'训练技巧与调优', meta:'5天'},
-    {id:'dl_transformer', text:'Transformer 架构原理', meta:'7天'},
-  ]},
-  { phase:6, title:'大模型与 Agent 开发', desc:'LLM 应用与智能体开发', topics:[
-    {id:'llm_api', text:'OpenAI / 智谱 API 调用', meta:'3天'},
-    {id:'llm_prompt', text:'Prompt Engineering 技巧', meta:'4天'},
-    {id:'llm_rag', text:'RAG 检索增强生成', meta:'7天'},
-    {id:'agent_frame', text:'Agent 框架（LangChain / 自研）', meta:'10天'},
-    {id:'agent_deploy', text:'部署与上线（FastAPI + Docker）', meta:'7天'},
-    {id:'pcpp', text:'PCPP1 认证考试', meta:'考证'},
-  ]},
-];
-function getRoadmapProgress() {
-  return DB.get('roadmap_progress', {});
+// ====== Module 7: 决策转盘 ======
+const WHEEL_DEFS = {
+  travel: { name: '旅游城市', items: ['上海', '杭州', '苏州', '南京', '北京', '成都', '重庆', '长沙', '西安', '青岛', '厦门', '武汉'] },
+  spot:   { name: '旅游景点', items: ['外滩', '迪士尼', '西湖', '拙政园', '夫子庙', '故宫', '宽窄巷子', '洪崖洞', '兵马俑', '栈桥', '鼓浪屿', '黄鹤楼'] },
+  food:   { name: '吃什么', items: ['火锅', '烧烤', '日料', '麻辣烫', '兰州拉面', '沙县小吃', '汉堡', '披萨', '川菜', '粤菜', '湘菜', '随便吃'] },
+};
+let wheelKey = 'travel';
+let wheelAngle = 0, spinning = false;
+
+function getWheelItems() { return DB.get('wheel_' + wheelKey, WHEEL_DEFS[wheelKey].items); }
+function setWheelItems(items) { DB.set('wheel_' + wheelKey, items); }
+
+function switchWheel(k) {
+  wheelKey = k;
+  document.querySelectorAll('.wheel-tabs .wtab').forEach(t => t.classList.toggle('active', t.dataset.w === k));
+  wheelAngle = 0;
+  drawWheel();
+  document.getElementById('wheel-result').textContent = '点击「转！」开始';
+  document.getElementById('wheel-result').classList.remove('big');
 }
-function saveRoadmapProgress(data) {
-  DB.set('roadmap_progress', data);
-}
-function toggleRoadmapTopic(topicId) {
-  const progress = getRoadmapProgress();
-  progress[topicId] = !progress[topicId];
-  saveRoadmapProgress(progress);
-  renderRoadmap();
-}
-function renderRoadmap() {
-  const container = document.getElementById('roadmap-container');
-  if (!container) return;
-  const progress = getRoadmapProgress();
-  let totalTopics = 0, doneTopics = 0;
-  let html = '';
-  for (const phase of roadmapData) {
-    const phaseDone = phase.topics.every(t => progress[t.id]);
-    totalTopics += phase.topics.length;
-    const phaseDoneCount = phase.topics.filter(t => progress[t.id]).length;
-    doneTopics += phaseDoneCount;
-    html += `<div class="roadmap-phase${phaseDone ? ' done' : ''}">`;
-    html += `<div class="phase-badge">${phaseDone ? '✓' : phase.phase}</div>`;
-    html += `<div class="phase-card">`;
-    html += `<div class="phase-title">${esc(phase.title)}</div>`;
-    html += `<div class="phase-desc">${esc(phase.desc)}（${phaseDoneCount}/${phase.topics.length}）</div>`;
-    for (const topic of phase.topics) {
-      const isDone = !!progress[topic.id];
-      html += `<div class="roadmap-topic${isDone ? ' done' : ''}" onclick="toggleRoadmapTopic('${topic.id}')">`;
-      html += `<div class="topic-check">${isDone ? '✓' : ''}</div>`;
-      html += `<div class="topic-text">${esc(topic.text)}</div>`;
-      html += `<div class="topic-meta">${esc(topic.meta)}</div>`;
-      html += `</div>`;
-    }
-    html += `</div></div>`;
+
+function drawWheel() {
+  const cv = document.getElementById('wheelCanvas');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  const items = getWheelItems();
+  const n = items.length || 1;
+  const cx = 170, cy = 170, R = 155;
+  const colors = ['#58cc02','#1cb0f6','#ff9600','#ce82ff','#ff4b4b','#00b8a9','#f4b400','#ff6f91','#4dd0e1','#aed581','#ff8a65','#9575cd','#4fc3f7','#ffb74d'];
+  ctx.clearRect(0, 0, 340, 340);
+  // 外圈
+  ctx.beginPath(); ctx.arc(cx, cy, R + 8, 0, Math.PI * 2);
+  ctx.fillStyle = '#1a2333'; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.fillStyle = '#0d1420'; ctx.fill();
+  const arc = (Math.PI * 2) / n;
+  for (let i = 0; i < n; i++) {
+    const a0 = wheelAngle + i * arc, a1 = a0 + arc;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R, a0, a1);
+    ctx.closePath();
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(13,20,32,.9)'; ctx.lineWidth = 2; ctx.stroke();
+    // 文字
+    const mid = a0 + arc / 2;
+    const tr = R * 0.62;
+    ctx.save();
+    ctx.translate(cx + Math.cos(mid) * tr, cy + Math.sin(mid) * tr);
+    ctx.rotate(mid + Math.PI / 2);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const label = items[i].length > 6 ? items[i].slice(0, 5) + '…' : items[i];
+    ctx.fillText(label, 0, 0);
+    ctx.restore();
   }
-  container.innerHTML = html;
-  const pct = totalTopics > 0 ? Math.round(doneTopics / totalTopics * 100) : 0;
-  const pctEl = document.getElementById('roadmap-percent');
-  const fillEl = document.getElementById('roadmap-fill');
-  if (pctEl) pctEl.textContent = pct + '%';
-  if (fillEl) fillEl.style.width = pct + '%';
+  // 中心
+  ctx.beginPath(); ctx.arc(cx, cy, 26, 0, Math.PI * 2);
+  ctx.fillStyle = '#1a2333'; ctx.fill();
+  ctx.strokeStyle = '#58cc02'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = '#58cc02'; ctx.font = 'bold 13px system-ui';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('GO', cx, cy);
+}
+
+function spinWheel() {
+  if (spinning) return;
+  const items = getWheelItems();
+  if (!items.length) { toast('先添加选项', ''); return; }
+  spinning = true;
+  const resEl = document.getElementById('wheel-result');
+  resEl.textContent = '转动中…'; resEl.classList.remove('big');
+  const n = items.length;
+  const arc = 360 / n;
+  const idx = Math.floor(Math.random() * n);
+  // 指针在正上方(-90deg)，目标扇区中心对准指针
+  const targetCenter = -90 - (idx * arc + arc / 2) + Math.PI * 180 / Math.PI * 0; // deg
+  const targetDeg = (idx * arc + arc / 2) + 90; // 使扇区中心到达-90°(正上)
+  const extra = 360 * (5 + Math.floor(Math.random() * 3));
+  const finalDeg = wheelAngle * 180 / Math.PI - (wheelAngle * 180 / Math.PI % 360) + extra + (360 - targetDeg % 360);
+  const startAngle = wheelAngle * 180 / Math.PI;
+  const total = finalDeg + Math.ceil((startAngle - finalDeg) / 360) * 360 + 360 * 6;
+  const dur = 4200;
+  const t0 = performance.now();
+  function easeOut(t) { return 1 - Math.pow(1 - t, 4); }
+  function frame(t) {
+    const p = Math.min(1, (t - t0) / dur);
+    const deg = startAngle + (total - startAngle) * easeOut(p);
+    wheelAngle = deg * Math.PI / 180;
+    drawWheel();
+    if (p < 1) { requestAnimationFrame(frame); }
+    else {
+      spinning = false;
+      // 校验落点
+      const norm = ((deg % 360) + 360) % 360;
+      const landed = Math.floor(((norm + 90) % 360) / arc) % n;
+      resEl.textContent = '🎯 ' + items[landed];
+      resEl.classList.add('big');
+      if (navigator.vibrate) navigator.vibrate(40);
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+function resetWheel() {
+  if (spinning) return;
+  showConfirm('恢复这个转盘的默认选项？', () => {
+    DB.set('wheel_' + wheelKey, null);
+    localStorage.removeItem('wb_wheel_' + wheelKey);
+    wheelAngle = 0;
+    drawWheel();
+    toast('已重置 ✅', 'success');
+  });
+}
+
+function editWheelItems() {
+  const items = getWheelItems();
+  const txt = prompt('编辑【' + WHEEL_DEFS[wheelKey].name + '】选项（每行一个）：', items.join('\n'));
+  if (txt === null) return;
+  const arr = txt.split('\n').map(x => x.trim()).filter(Boolean);
+  if (!arr.length) { toast('至少要一个选项', ''); return; }
+  if (arr.length > 16) { toast('最多 16 个选项', ''); return; }
+  setWheelItems(arr);
+  wheelAngle = 0;
+  drawWheel();
+  toast('已保存 ✅', 'success');
+}
+
+// ====== 语音输入（速记）======
+let recog = null, listening = false;
+function toggleVoice() {
+  const btn = document.getElementById('voice-btn');
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { toast('此浏览器不支持语音识别，请用 Safari/Chrome', ''); return; }
+  if (listening) { recog && recog.stop(); return; }
+  recog = new SR();
+  recog.lang = 'zh-CN';
+  recog.interimResults = true;
+  recog.continuous = false;
+  const input = document.getElementById('memo-input');
+  const baseText = input.value ? input.value : '';
+  recog.onstart = () => { listening = true; btn.textContent = '🔴'; btn.style.background = 'var(--red)'; toast('正在听…说完自动停', ''); };
+  recog.onresult = (e) => {
+    let fin = '', inter = '';
+    for (let i = 0; i < e.results.length; i++) {
+      const r = e.results[i];
+      if (r.isFinal) fin += r[0].transcript; else inter += r[0].transcript;
+    }
+    input.value = baseText + fin + inter;
+  };
+  recog.onerror = (e) => {
+    listening = false; btn.textContent = '🎙️'; btn.style.background = '';
+    toast(e.error === 'not-allowed' ? '需要麦克风权限（iOS: 设置>Safari>麦克风）' : '识别失败：' + e.error, '');
+  };
+  recog.onend = () => { listening = false; btn.textContent = '🎙️'; btn.style.background = ''; };
+  recog.start();
 }
 
 // ====== Stats ======
@@ -1531,7 +1628,7 @@ renderTasks();
 renderStats();
 loadReview();
 renderMemos();
-renderRoadmap();
+drawWheel();
 checkTimeHint();
 </script>
 </body>
