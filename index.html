@@ -38,7 +38,7 @@
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
-    padding: 0 0 calc(110px + env(safe-area-inset-bottom)) 0;
+    padding: 0 0 calc(90px + env(safe-area-inset-bottom)) 0;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
   }
@@ -606,7 +606,7 @@
 /* ===== 底部语音速记栏 ===== */
 .voice-bar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 150;
-  display: flex; gap: 8px; align-items: center;
+  display: none; gap: 8px; align-items: center;
   padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
   background: var(--bg-2); border-top: 1px solid var(--border);
 }
@@ -620,6 +620,7 @@
   0%, 100% { box-shadow: 0 0 0 0 rgba(255,75,75,.55); }
   50% { box-shadow: 0 0 0 9px rgba(255,75,75,0); }
 }
+.memo-time { font-size: 10.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; margin-bottom: 2px; letter-spacing: .02em; }
 </style>
 </head>
 <body>
@@ -719,14 +720,6 @@
       <div id="memo-list"></div>
     </div>
   </section>
-  <!-- 模块5：每日复盘 -->
-  <section>
-    <div class="card">
-      <div class="card-title" data-cfg-title="review">📝 每日复盘</div>
-      <textarea class="review-textarea" id="review-input" placeholder="记录错题、薄弱考点、当日学习总结..." onblur="saveReview()"></textarea>
-      <button class="btn" onclick="saveReview()" style="margin-top:10px;width:100%" data-cfg-btn="review_save">💾 保存复盘</button>
-    </div>
-  </section>
   </div>
 <div class="panel" id="panel-coding">
   <!-- 模块7：转盘 -->
@@ -773,7 +766,7 @@
 <div class="toast" id="toast"></div>
 
 <!-- 底部语音速记栏（全局固定，任意标签页可用） -->
-<div class="voice-bar">
+<div class="voice-bar" id="voice-bar-wrap">
   <input type="text" id="memo-input" placeholder="长按 🎤 说话，松手自动入库…" onkeydown="if(event.key==='Enter')addMemo()">
   <button class="btn btn-sm" id="voice-btn" title="按住说话，松手发送">🎤</button>
   <button class="btn btn-sm" onclick="addMemo()" data-cfg-btn="memo_add">+</button>
@@ -1023,8 +1016,8 @@ const defaultConfig={
   ruleText2:"大道五十，天衍四九，人遁其一",
   timeHint:"该休息啦，辛苦一天了 ❤️",
   tabs:[{id:"home",icon:"🏠",name:"首页"},{id:"study",icon:"📋",name:"学习"},{id:"memo",icon:"⚡",name:"速记"},{id:"coding",icon:"🎡",name:"转盘"}],
-  cardTitles:{checkin_stats:"📋 打卡 & 数据总览",timer:"⏱ 番茄计时器",tasks:"📚 每日学习任务",memo:"⚡ 知识库速记",review:"📝 每日复盘",stats:"📊 学习数据统计",coding:"🎡 决策转盘"},
-  buttons:{checkin:"今日打卡",stats:"📊 数据统计",timer_start:"▶ 开始学习",timer_stop:"■ 结束计时",memo_add:"+ 新增",review_save:"💾 保存复盘"},
+  cardTitles:{checkin_stats:"📋 打卡 & 数据总览",timer:"⏱ 番茄计时器",tasks:"📚 每日学习任务",memo:"⚡ 知识库速记",stats:"📊 学习数据统计",coding:"🎡 决策转盘"},
+  buttons:{checkin:"今日打卡",stats:"📊 数据统计",timer_start:"▶ 开始学习",timer_stop:"■ 结束计时",memo_add:"+ 新增"},
   statLabels:{checkin_total:"累计打卡 {n} 天",timer_count:"今日 {n} 段 · 共 {m}"},
   statTabs:{day:"日统计",week:"周统计",month:"月统计"},
   statRowLabels:{daily_total:"当日总时长",seg_count:"学习段数",seg_detail:"分段明细",no_data:"今日暂无记录",week_total:"本周总时长",daily_avg:"日均时长",checkin_days:"打卡天数",study_days:"学习天数",trend_title:"时长趋势",month_total:"月度总时长",week_trend:"周度趋势",minute_suffix:"分"},
@@ -1039,7 +1032,7 @@ const defaultConfig={
   ],
   mathTotal:76,
   vocabTotal:427,
-  configVersion:3
+  configVersion:4
 };
 function loadConfig(){
   try{
@@ -1051,6 +1044,10 @@ function loadConfig(){
       saved.tabs=defaultConfig.tabs;
       saved.cardTitles=defaultConfig.cardTitles;
       saved.buttons=defaultConfig.buttons;
+      saved.taskGroups=defaultConfig.taskGroups;
+      saved.mathTotal=defaultConfig.mathTotal;
+      saved.vocabTotal=defaultConfig.vocabTotal;
+      delete saved.review;
       saved.configVersion=defaultConfig.configVersion;
       delete saved.restRuleText;
       delete saved.wheelCats;
@@ -1185,10 +1182,6 @@ function toggleTask(i) {
   renderTasks();
 }
 
-// ====== Module 5: Review ======
-function loadReview() {
-  document.getElementById('review-input').value = DB.get('review_' + today(), '');
-}
 function saveReview() {
   const text = document.getElementById('review-input').value.trim();
   DB.set('review_' + today(), text);
@@ -1229,12 +1222,18 @@ function delMemo(id) {
     toast('已删除', '');
   });
 }
+function fmtTs(ts) {
+  const d = new Date(ts);
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+}
 function renderMemos() {
   const memos = getMemos();
   const list = document.getElementById('memo-list');
   if (!memos.length) { list.innerHTML = '<div class="empty">暂无备忘</div>'; return; }
   list.innerHTML = memos.map(m => `
     <div class="memo-item">
+      <div class="memo-time">${fmtTs(m.created || m.id)}</div>
       <span class="memo-text">${esc(m.text)}</span>
       <div class="memo-actions">
         <button class="icon-btn" onclick="editMemo(${m.id})">✎</button>
@@ -1628,6 +1627,8 @@ function esc(s) {
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const vbar = document.getElementById('voice-bar-wrap');
+  if (vbar) vbar.style.display = (name === 'memo') ? 'flex' : 'none';
   const tab = document.querySelector(`.tab[data-tab="${name}"]`);
   const panel = document.getElementById('panel-' + name);
   if (tab) tab.classList.add('active');
