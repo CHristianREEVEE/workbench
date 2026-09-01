@@ -92,7 +92,6 @@ textarea.input{resize:vertical;min-height:80px}
 <div class="nav-tab" onclick="switchPanel(event,'content')">✏️ 内容管理</div>
 <div class="nav-tab" onclick="switchPanel(event,'tasks')">📋 任务</div>
 <div class="nav-tab" onclick="switchPanel(event,'timer')">⏱ 计时</div>
-<div class="nav-tab" onclick="switchPanel(event,'review')">📝 复盘</div>
 <div class="nav-tab" onclick="switchPanel(event,'checkin')">✅ 打卡</div>
 <div class="nav-tab" onclick="switchPanel(event,'memo')">📌 备忘</div>
 <div class="nav-tab" onclick="switchPanel(event,'raw')">🔧 原始数据</div>
@@ -141,17 +140,7 @@ textarea.input{resize:vertical;min-height:80px}
 <div id="timer-segments"></div>
 </div>
 </div>
-<div class="panel" id="p-review">
-<div class="card">
-<div class="card-title">📝 每日复盘</div>
-<div class="date-picker">
-<label class="label">日期</label>
-<input class="input" type="date" id="review-date">
-<button class="btn btn-sm" onclick="loadReviewEntry()">查看</button>
-</div>
-<div id="review-content"></div>
-</div>
-</div>
+
 <div class="panel" id="p-checkin">
 <div class="card">
 <div class="card-title">✅ 打卡记录</div>
@@ -275,8 +264,8 @@ const defaultConfig={
   ruleText2:"大道五十，天衍四九，人遁其一",
   timeHint:"该休息啦，辛苦一天了 ❤️",
   tabs:[{id:"home",icon:"🏠",name:"首页"},{id:"study",icon:"📋",name:"学习"},{id:"memo",icon:"📝",name:"备忘"},{id:"coding",icon:"💻",name:"编程"}],
-  cardTitles:{checkin_stats:"📋 打卡 & 数据总览",timer:"⏱ 番茄计时器",tasks:"📚 每日学习任务",memo:"📌 备忘录",review:"📝 每日复盘",stats:"📊 学习数据统计",coding:"💻 AI 学习路线图"},
-  buttons:{checkin:"今日打卡",stats:"📊 数据统计",timer_start:"▶ 开始学习",timer_stop:"■ 结束计时",memo_add:"+ 新增",review_save:"💾 保存复盘"},
+  cardTitles:{checkin_stats:"📋 打卡 & 数据总览",timer:"⏱ 番茄计时器",tasks:"📚 每日学习任务",memo:"📌 备忘录",stats:"📊 学习数据统计",coding:"💻 AI 学习路线图"},
+  buttons:{checkin:"今日打卡",stats:"📊 数据统计",timer_start:"▶ 开始学习",timer_stop:"■ 结束计时",memo_add:"+ 新增"},
   statLabels:{checkin_total:"累计打卡 {n} 天",timer_count:"今日 {n} 段 · 共 {m}"},
   statTabs:{day:"日统计",week:"周统计",month:"月统计"},
   statRowLabels:{daily_total:"当日总时长",seg_count:"学习段数",seg_detail:"分段明细",no_data:"今日暂无记录",week_total:"本周总时长",daily_avg:"日均时长",checkin_days:"打卡天数",study_days:"学习天数",trend_title:"时长趋势",month_total:"月度总时长",week_trend:"周度趋势",minute_suffix:"分"},
@@ -290,9 +279,10 @@ const defaultConfig={
     
   ],
   mathTotal:76,
-  vocabTotal:427
+  vocabTotal:427,
+  configVersion:4
 };
-function loadConfig(){try{const v=localStorage.getItem('workbench_config');return v?JSON.parse(v):JSON.parse(JSON.stringify(defaultConfig))}catch(e){return JSON.parse(JSON.stringify(defaultConfig))}}
+function loadConfig(){try{const v=localStorage.getItem('workbench_config');if(!v)return JSON.parse(JSON.stringify(defaultConfig));const saved=JSON.parse(v);if(!saved.configVersion||saved.configVersion<defaultConfig.configVersion){saved.tabs=defaultConfig.tabs;saved.cardTitles=defaultConfig.cardTitles;saved.buttons=defaultConfig.buttons;saved.taskGroups=defaultConfig.taskGroups;saved.mathTotal=defaultConfig.mathTotal;saved.vocabTotal=defaultConfig.vocabTotal;saved.configVersion=defaultConfig.configVersion;localStorage.setItem('workbench_config',JSON.stringify(saved));return saved}return saved}catch(e){return JSON.parse(JSON.stringify(defaultConfig))}}
 function saveConfigRaw(cfg){localStorage.setItem('workbench_config',JSON.stringify(cfg))}
 let CFG=loadConfig();
 let MATH_TOTAL=CFG.mathTotal;
@@ -472,7 +462,7 @@ function switchPanel(e,name){
   if(name==='overview')renderOverview();
   if(name==='tasks')renderTaskAdmin();
   if(name==='timer')loadTimerSegments();
-  if(name==='review')loadReviewEntry();
+  
   if(name==='checkin')renderCheckinList();
   if(name==='memo')renderMemoAdmin();
   if(name==='content')renderContentAdmin();
@@ -610,28 +600,9 @@ function delTimerSeg(date,i){
     if(data[date]){data[date].splice(i,1);DB.set('timer_segments',data);loadTimerSegments();toast('已删除','')}
   });
 }
-function loadReviewEntry(){
-  const dateInput=document.getElementById('review-date');
-  if(!dateInput.value)dateInput.value=today();
-  const date=dateInput.value;
-  const text=DB.get('review_'+date,'');
-  document.getElementById('review-content').innerHTML=
-    '<div class="input-row"><textarea class="input" id="review-edit" style="min-height:120px" placeholder="该日无复盘">'+esc(text)+'</textarea></div>'+
-    '<button class="btn btn-sm btn-green" onclick="saveReviewEntry(\''+date+'\')">💾 保存</button> '+
-    '<button class="btn btn-sm btn-red" onclick="delReviewEntry(\''+date+'\')">🗑 删除</button>';
-}
-function saveReviewEntry(date){
-  const text=document.getElementById('review-edit').value;
-  DB.set('review_'+date,text);
-  toast('复盘已保存 ✅','success');
-}
-function delReviewEntry(date){
-  showConfirm('删除该日复盘？',function(){
-    DB.del('review_'+date);
-    loadReviewEntry();
-    toast('已删除','');
-  });
-}
+
+
+
 function renderCheckinList(){
   const checkins=DB.get('checkins',[]);
   const list=document.getElementById('checkin-list');
@@ -760,7 +731,7 @@ function clearAllData(){
   });
 }
 document.getElementById('timer-date').value=today();
-document.getElementById('review-date').value=today();
+
 renderOverview();
 </script>
 </body>
