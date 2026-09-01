@@ -38,7 +38,7 @@
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
-    padding: 0 0 80px 0;
+    padding: 0 0 calc(110px + env(safe-area-inset-bottom)) 0;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
   }
@@ -603,6 +603,23 @@
   .panel.active { display: block; animation: fadeIn .35s ease; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
+/* ===== 底部语音速记栏 ===== */
+.voice-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 150;
+  display: flex; gap: 8px; align-items: center;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  background: var(--bg-2); border-top: 1px solid var(--border);
+}
+.voice-bar input { flex: 1; }
+#voice-btn {
+  font-size: 20px; line-height: 1; padding: 9px 14px;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+#voice-btn.listening { background: var(--red); animation: voicePulse 1.2s ease-in-out infinite; }
+@keyframes voicePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,75,75,.55); }
+  50% { box-shadow: 0 0 0 9px rgba(255,75,75,0); }
+}
 </style>
 </head>
 <body>
@@ -698,11 +715,7 @@
   <section>
     <div class="card">
       <div class="card-title" data-cfg-title="memo">⚡ 知识库速记 <span style="font-size:11px;font-weight:400;color:var(--text-dim)">——想法先进这里，周日上传归档</span></div>
-      <div class="memo-input-row">
-        <input type="text" id="memo-input" placeholder="想到什么记什么，周日一起上传知识库..." onkeydown="if(event.key==='Enter')addMemo()">
-        <button class="btn btn-sm" id="voice-btn" onclick="toggleVoice()" style="font-size:16px;line-height:1" title="语音输入">🎙️</button>
-        <button class="btn btn-sm" onclick="addMemo()" data-cfg-btn="memo_add">+ 新增</button>
-      </div>
+      
       <div id="memo-list"></div>
     </div>
   </section>
@@ -758,6 +771,13 @@
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
+
+<!-- 底部语音速记栏（全局固定，任意标签页可用） -->
+<div class="voice-bar">
+  <input type="text" id="memo-input" placeholder="长按 🎤 说话，松手自动入库…" onkeydown="if(event.key==='Enter')addMemo()">
+  <button class="btn btn-sm" id="voice-btn" title="按住说话，松手发送">🎤</button>
+  <button class="btn btn-sm" onclick="addMemo()" data-cfg-btn="memo_add">+</button>
+</div>
 
 <script>
 // ====== Storage ======
@@ -1328,7 +1348,7 @@ function spinWheel() {
       spinning = false;
       // 校验落点
       const norm = ((deg % 360) + 360) % 360;
-      const landed = Math.floor(((norm + 90) % 360) / arc) % n;
+      const landed = Math.floor((((270 - norm % 360) % 360) + 360) % 360 / arc) % n;
       resEl.textContent = '🎯 ' + items[landed];
       resEl.classList.add('big');
       if (navigator.vibrate) navigator.vibrate(40);
@@ -1358,23 +1378,27 @@ function editWheelItems() {
   setWheelItems(arr);
   wheelAngle = 0;
   drawWheel();
+  const resEl2 = document.getElementById('wheel-result');
+  resEl2.textContent = '选项已更新，点「转！」开始';
+  resEl2.classList.remove('big');
   toast('已保存 ✅', 'success');
 }
 
-// ====== 语音输入（速记）======
-let recog = null, listening = false;
-function toggleVoice() {
-  const btn = document.getElementById('voice-btn');
+// ====== 语音输入（速记）：按住说话，松手自动发送 ======
+let recog = null, listening = false, holdActive = false, pendingSend = false;
+function startVoice() {
+  if (listening) return;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { toast('此浏览器不支持语音识别，请用 Safari/Chrome', ''); return; }
-  if (listening) { recog && recog.stop(); return; }
+  const btn = document.getElementById('voice-btn');
+  const input = document.getElementById('memo-input');
+  holdActive = true; pendingSend = false;
   recog = new SR();
   recog.lang = 'zh-CN';
   recog.interimResults = true;
-  recog.continuous = false;
-  const input = document.getElementById('memo-input');
+  recog.continuous = true; // 不自动停：什么时候停由你的手指决定
   const baseText = input.value ? input.value : '';
-  recog.onstart = () => { listening = true; btn.textContent = '🔴'; btn.style.background = 'var(--red)'; toast('正在听…说完自动停', ''); };
+  recog.onstart = () => { listening = true; btn.classList.add('listening'); toast('按住说，松手自动发送 🎤', ''); };
   recog.onresult = (e) => {
     let fin = '', inter = '';
     for (let i = 0; i < e.results.length; i++) {
@@ -1384,12 +1408,29 @@ function toggleVoice() {
     input.value = baseText + fin + inter;
   };
   recog.onerror = (e) => {
-    listening = false; btn.textContent = '🎙️'; btn.style.background = '';
+    listening = false; btn.classList.remove('listening');
     toast(e.error === 'not-allowed' ? '需要麦克风权限（iOS: 设置>Safari>麦克风）' : '识别失败：' + e.error, '');
   };
-  recog.onend = () => { listening = false; btn.textContent = '🎙️'; btn.style.background = ''; };
-  recog.start();
+  recog.onend = () => {
+    listening = false; btn.classList.remove('listening');
+    if (pendingSend) { pendingSend = false; const v = input.value.trim(); if (v) addMemo(); }
+    else if (holdActive) { try { recog.start(); } catch (err) {} } // iOS 静音自停，手指还按着就续听
+  };
+  try { recog.start(); } catch (err) { toast('无法启动麦克风', ''); }
 }
+function stopVoice(send) {
+  holdActive = false;
+  if (recog && listening) { pendingSend = !!send; try { recog.stop(); } catch (e) {} }
+  else if (send) { const input = document.getElementById('memo-input'); const v = input.value.trim(); if (v) addMemo(); }
+}
+document.addEventListener('DOMContentLoaded', function () {
+  const btn = document.getElementById('voice-btn');
+  if (!btn) return;
+  btn.addEventListener('pointerdown', function (e) { e.preventDefault(); startVoice(); });
+  btn.addEventListener('pointerup',   function (e) { e.preventDefault(); stopVoice(true); });
+  btn.addEventListener('pointercancel', function () { stopVoice(false); });
+  btn.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+});
 
 // ====== Stats ======
 let statTab = 'day';
