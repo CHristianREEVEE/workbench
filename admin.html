@@ -287,15 +287,7 @@ const defaultConfig={
       {cat:'逻辑',time:'每日',desc:''},
       {cat:'写作',time:'每日',desc:''},
     ]},
-    {label:'多邻国 · 棋类',icon:'♟️',items:[
-      {cat:'国际象棋',time:'10分钟',desc:''},
-    ]},
-    {label:'多邻国 · 语言',icon:'🌍',items:[
-      {cat:'英语',time:'15分钟',desc:''},
-      {cat:'日语',time:'15分钟',desc:''},
-      {cat:'韩语',time:'15分钟',desc:''},
-      {cat:'西班牙语',time:'15分钟',desc:''},
-    ]},
+    
   ],
   mathTotal:76,
   vocabTotal:427
@@ -505,7 +497,6 @@ function renderOverview(){
     '<div class="stat-card green"><div class="v">'+checkins.length+'</div><div class="l">累计打卡</div></div>'+
     '<div class="stat-card"><div class="v">'+fmtDual(totalSec)+'</div><div class="l">总学习时长</div></div>'+
     '<div class="stat-card blue"><div class="v">'+totalSegs+'</div><div class="l">计时段数</div></div>'+
-    '<div class="stat-card orange"><div class="v">'+totalTaskDone+'</div><div class="l">任务完成总数</div></div>'+
     '<div class="stat-card green"><div class="v">'+mathDone+'/'+MATH_TOTAL+'</div><div class="l">数学考点</div></div>'+
     '<div class="stat-card"><div class="v">'+Math.round(mathDone/MATH_TOTAL*100)+'%</div><div class="l">数学进度</div></div>';
   let thtml='<div style="overflow-x:auto"><table class="data-table" style="width:100%"><thead><tr><th>任务</th><th>分类</th><th>累计</th><th>进度</th></tr></thead><tbody>';
