@@ -590,7 +590,8 @@ function loadTimerSegments(){
   let html='<table class="data-table"><thead><tr><th>开始</th><th>结束</th><th>时长</th><th>操作</th></tr></thead><tbody>';
   segs.forEach(function(s,i){
     const st=new Date(s.start),en=new Date(s.end);
-    html+='<tr><td>'+st.toTimeString().slice(0,5)+'</td><td>'+en.toTimeString().slice(0,5)+'</td><td><b>'+fmtMin(s.duration)+'</b></td><td><button class="btn btn-sm btn-red" onclick="delTimerSeg(\''+date+'\','+i+')">删除</button></td></tr>';
+    var timeCols=s.manual?'<td>加时</td><td>—</td>':'<td>'+st.toTimeString().slice(0,5)+'</td><td>'+en.toTimeString().slice(0,5)+'</td>';
+    html+='<tr>'+timeCols+'<td><b>'+fmtMin(s.duration)+'</b></td><td><button class="btn btn-sm btn-red" onclick="delTimerSeg(\''+date+'\','+i+')">删除</button></td></tr>';
   });
   html+='</tbody></table>';
   const total=segs.reduce(function(s,x){return s+x.duration},0);
