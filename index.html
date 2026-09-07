@@ -1556,7 +1556,7 @@ function renderStats() {
     if (segs.length) {
       html += segs.map(s => {
         const st = new Date(s.start), en = new Date(s.end);
-        return `<div class="stat-row"><span>${s.manual ? '✏️ 补记 ' : ''}${st.toTimeString().slice(0,5)}-${en.toTimeString().slice(0,5)}</span><b>${fmtMin(s.duration)}</b></div>`;
+        return `<div class="stat-row"><span>${s.manual ? '加时' : st.toTimeString().slice(0,5)+'-'+en.toTimeString().slice(0,5)}</span><b>${fmtMin(s.duration)}</b></div>`;
       }).join('');
     }
     if (liveSec > 0) {
