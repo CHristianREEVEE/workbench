@@ -193,13 +193,13 @@
   .timer-display.running { color: var(--green); }
   @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
   .timer-btns { display: flex; gap: 10px; justify-content: center; }
-  .timer-adjust { display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 10px; }
+  .timer-adjust { display: flex; gap: 5px; justify-content: center; align-items: center; margin-top: 10px; flex-wrap: wrap; }
   .ta-btn {
     background: var(--card);
     color: var(--text);
     border: 1px solid var(--border-strong);
     border-radius: 8px;
-    padding: 5px 11px;
+    padding: 5px 9px;
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
@@ -679,11 +679,12 @@
         <button class="btn btn-red" id="timer-stop" onclick="stopTimer()" disabled data-cfg-btn="timer_stop">■ 结束计时</button>
       </div>
       <div class="timer-adjust">
-        <span style="font-size:12px;color:var(--text-dim)">修正</span>
+        <span style="font-size:12px;color:var(--text-dim)">补时</span>
         <button class="ta-btn" onclick="adjustTimer(-10)">−10分</button>
         <button class="ta-btn" onclick="adjustTimer(-1)">−1分</button>
         <button class="ta-btn" onclick="adjustTimer(1)">+1分</button>
         <button class="ta-btn" onclick="adjustTimer(10)">+10分</button>
+        <button class="ta-btn" onclick="adjustTimer(60)">+1时</button>
       </div>
       <div id="ta-pending" class="ta-pending"></div>
       <div style="text-align:center;margin-top:8px;font-size:13px;color:var(--text-dim)" id="timer-count">今日 0 段 · 共 0 分钟</div>
@@ -934,7 +935,7 @@ function updateTimerDisplay() {
   document.getElementById('timer-display').textContent = fmtTime(elapsed);
   if (elapsed !== lastShownSec) { lastShownSec = elapsed; updateTimerCount(); if (statTab === 'day') renderStats(); } // 今日统计实时同步
 }
-// 修正按钮：计时中直接平移起点；未计时先攒补时，点开始时接着算
+// 补时按钮：计时中直接平移起点；未计时直接把时间写入今日记录（立即落盘+统计同步）
 function adjustTimer(min) {
   const delta = min * 60;
   if (timerRunning) {
@@ -945,8 +946,39 @@ function adjustTimer(min) {
     updateTimerDisplay();
     toast(`已${min > 0 ? '加' : '减'} ${Math.abs(min)} 分钟`, 'success');
   } else {
-    timerAdjustSec = Math.max(0, timerAdjustSec + delta);
-    document.getElementById('timer-display').textContent = fmtTime(timerAdjustSec);
+    timerAdjustSec = 0; // 旧版挂起的补时不再等待"开始"，直接走下面入账
+    const segs = getTodaySegments();
+    if (min > 0) {
+      const last = segs[segs.length - 1];
+      if (last && last.manual && Date.now() - last.end < 10 * 60 * 1000) {
+        // 10分钟内连续补点合并成一段，避免刷出十几条1分钟碎片
+        last.duration += delta;
+        last.end = Date.now();
+        last.start = last.end - last.duration * 1000;
+      } else {
+        const end = Date.now();
+        segs.push({ start: end - delta * 1000, end: end, duration: delta, manual: true });
+      }
+      saveTodaySegments(segs);
+      document.getElementById('timer-display').textContent = '00:00:00';
+      lastShownSec = -1;
+      updateTimerCount();  // "今日 X 段 · 共 X" 立即刷新
+      renderStats();       // 底部日/周/月统计立即刷新
+      toast(`已补记 ${min >= 60 ? (min / 60) + ' 小时' : min + ' 分钟'}，今日统计已更新`, 'success');
+    } else {
+      if (!segs.length) { toast('今日还没有记录可减', 'warn'); return; }
+      const last = segs[segs.length - 1];
+      last.duration = Math.max(0, last.duration + delta);
+      if (last.duration < 60) { segs.pop(); toast('该段已不足1分钟，已删除', 'warn'); }
+      else {
+        last.end = Date.now();
+        last.start = last.end - last.duration * 1000;
+      }
+      saveTodaySegments(segs);
+      updateTimerCount();
+      renderStats();
+      if (last && last.duration >= 60) toast(`已减 ${Math.abs(min)} 分钟`, 'success');
+    }
     updateAdjustUI();
   }
 }
@@ -1524,7 +1556,7 @@ function renderStats() {
     if (segs.length) {
       html += segs.map(s => {
         const st = new Date(s.start), en = new Date(s.end);
-        return `<div class="stat-row"><span>${st.toTimeString().slice(0,5)}-${en.toTimeString().slice(0,5)}</span><b>${fmtMin(s.duration)}</b></div>`;
+        return `<div class="stat-row"><span>${s.manual ? '✏️ 补记 ' : ''}${st.toTimeString().slice(0,5)}-${en.toTimeString().slice(0,5)}</span><b>${fmtMin(s.duration)}</b></div>`;
       }).join('');
     }
     if (liveSec > 0) {
