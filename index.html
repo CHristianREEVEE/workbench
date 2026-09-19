@@ -656,6 +656,7 @@
         <div class="big-clock" id="big-clock">00:00:00</div>
         <button class="checkin-btn" id="checkin-btn" onclick="toggleCheckin()" data-cfg-btn="checkin">今日打卡</button>
         <div class="checkin-count">累计打卡 <b id="checkin-total">0</b> 天</div>
+        <div class="checkin-count">总计学习时长 <b id="study-total">0</b> 小时</div>
         <div class="streak-row">
           <div class="streak-item">
             <div class="label">当前连续</div>
@@ -928,6 +929,7 @@ function stopTimer() {
   lastShownSec = -1;
   updateAdjustUI();
   updateTimerCount();
+  updateStudyTotal();
   if (statTab === 'day') renderStats(); // 结束计时后底部统计立刻落账
 }
 function updateTimerDisplay() {
@@ -997,6 +999,19 @@ function updateTimerCount() {
   const fmt = CFG.statLabels.timer_count || '今日 {n} 段 · 共 {m}';
   document.getElementById('timer-count').textContent = fmt.replace('{n}',segs.length).replace('{m}',fmtDual(totalSec)).replace('分钟 分钟', '分钟');
   updateRecordBadge();
+}
+// 总计学习时长：全期累计（口径与统计一致，manual_time 覆盖优先）
+function updateStudyTotal() {
+  const data = DB.get('timer_segments', {});
+  const overrides = DB.get('manual_time', {}) || {};
+  const dates = new Set([...Object.keys(data), ...Object.keys(overrides)]);
+  let totalSec = 0;
+  dates.forEach(d => {
+    if (overrides[d] !== undefined) totalSec += overrides[d] * 60;
+    else (data[d] || []).forEach(seg => { totalSec += seg.duration; });
+  });
+  const el = document.getElementById('study-total');
+  if (el) el.textContent = (totalSec/3600).toFixed(1);
 }
 // 历史最长纪录：全期单日学习时长之最；今天刷新纪录时高亮
 function fmtRec(s) { return s >= 3600 ? (s/3600).toFixed(1) + '小时' : Math.round(s/60) + '分钟'; }
@@ -1692,6 +1707,7 @@ setInterval(updateClock, 1000);
 applyConfig();
 updateCheckinUI();
 updateTimerCount();
+updateStudyTotal();
 restoreTimer();
 renderTasks();
 renderStats();
