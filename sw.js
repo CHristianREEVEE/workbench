@@ -26,9 +26,10 @@ self.addEventListener('fetch', e => {
 
   if (req.mode === 'navigate') {
     // 导航请求：缓存命中秒开，同时后台拉新版（下次打开生效）
+    // no-store：绕过 HTTP 缓存直打 CDN——否则后台"更新"拉回来的还是旧版，用户开 N 次都不换新
     e.respondWith(
       caches.match('./index.html').then(hit => {
-        const net = fetch(req).then(res => {
+        const net = fetch(req, { cache: 'no-store' }).then(res => {
           const cp = res.clone();
           caches.open(CACHE).then(c => c.put('./index.html', cp));
           return res;
