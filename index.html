@@ -56,7 +56,7 @@
   }
   .wallpaper-btn {
     position: absolute;
-    top: 10px;
+    bottom: 12px;
     right: 14px;
     width: 38px; height: 38px;
     border-radius: 50%;
@@ -638,7 +638,11 @@
     display: flex; gap: 2px; padding: 6px 8px;
     flex-wrap: nowrap; background: var(--bg-2);
     border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100;
+    overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
   }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab-add { color: var(--text-mid); flex: 0 0 52px !important; justify-content: center; }
   .tab {
     flex: 1; padding: 10px 0; cursor: pointer;
     color: var(--text-dim); font-size: 14px; font-weight: 500;
@@ -689,11 +693,7 @@
 <div class="panel active" id="panel-home">
   <!-- 模块0：格言 -->
   <section>
-    <div class="card motto-card" style="position:relative;cursor:pointer" onclick="editMotto()" title="点击修改格言">
-      <div class="motto-main" id="rule-text">天行健，君子以自强不息</div>
-      <div class="motto-sub" id="rule-text-2">大道五十，天衍四九，人遁其一</div>
-      <button class="motto-edit-btn" onclick="event.stopPropagation();editMotto()" title="修改格言">✏️</button>
-    </div>
+    <div class="card motto-card" style="position:relative;cursor:pointer" id="motto-card" onclick="openMottoModal()" title="点击修改格言"></div>
   </section>
   <!-- 模块1：打卡&数据总览 -->
   <section>
@@ -805,6 +805,9 @@
   </section>
 </div>
 
+<!-- 用户自建板块面板（动态渲染） -->
+<div id="custom-panels"></div>
+
 <!-- 统计已移至首页直接展示 -->
 
 <div style="text-align:center;padding:16px 0 8px">
@@ -890,6 +893,48 @@
       <span class="wp-veil-val" id="wp-veil-val">60%</span>
     </div>
     <div style="font-size:11px;color:var(--text-dim);margin-top:10px">壁纸只存在本机，换设备需重新设置</div>
+  </div>
+</div>
+
+<!-- 新建板块弹窗 -->
+<div class="modal-overlay" id="tab-overlay" onclick="if(event.target===this)closeTabModal()">
+  <div class="modal">
+    <div class="modal-header"><b style="font-size:15px">＋ 新建板块</b><button class="modal-close" style="font-size:20px" onclick="closeTabModal()">×</button></div>
+    <div style="font-size:12px;color:var(--text-mid);margin:-6px 0 14px">标签栏左滑可随时找到 ＋；板块里写的内容自动保存</div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--text-mid);margin-bottom:4px">板块名（如：待办 / 需求 / 灵感）</div>
+      <input id="ct-name" placeholder="板块名" style="width:100%;box-sizing:border-box;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:14px">
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;color:var(--text-mid);margin-bottom:6px">图标</div>
+      <div id="tab-emoji-row" style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="ce sel" onclick="pickTabIcon(this,'📌')">📌</button>
+        <button class="ce" onclick="pickTabIcon(this,'✅')">✅</button>
+        <button class="ce" onclick="pickTabIcon(this,'🗒️')">🗒️</button>
+        <button class="ce" onclick="pickTabIcon(this,'💡')">💡</button>
+        <button class="ce" onclick="pickTabIcon(this,'🧭')">🧭</button>
+        <button class="ce" onclick="pickTabIcon(this,'🎯')">🎯</button>
+        <button class="ce" onclick="pickTabIcon(this,'📌')">📋</button>
+        <button class="ce" onclick="pickTabIcon(this,'🔥')">🔥</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-outline" style="flex:1" onclick="closeTabModal()">取消</button>
+      <button class="btn btn-green" style="flex:1" onclick="saveCustomTab()">创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- 格言设置弹窗 -->
+<div class="modal-overlay" id="motto-overlay" onclick="if(event.target===this)closeMottoModal()">
+  <div class="modal">
+    <div class="modal-header"><b style="font-size:15px">✏️ 格言设置</b><button class="modal-close" style="font-size:20px" onclick="closeMottoModal()">×</button></div>
+    <div style="font-size:12px;color:var(--text-mid);margin:-6px 0 12px">一行一句，想写几行写几行；第一行大字，其余小字</div>
+    <textarea id="motto-input" rows="6" placeholder="第一行（大字）…&#10;第二行…&#10;第三行…" style="width:100%;box-sizing:border-box;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:12px;font-size:14px;line-height:1.8;resize:vertical"></textarea>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-outline" style="flex:1" onclick="closeMottoModal()">取消</button>
+      <button class="btn btn-green" style="flex:1" onclick="saveMotto()">保存</button>
+    </div>
   </div>
 </div>
 
@@ -1335,13 +1380,10 @@ const tasks=taskGroups.flatMap(g=>g.items.map(t=>({...t,group:g.label})));
 function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
 function applyConfig(){
   document.querySelector('.main-title').textContent=CFG.mainTitle||'';
-  document.getElementById('rule-text').textContent=CFG.ruleText||'';
-  const rt2=document.getElementById('rule-text-2');if(rt2)rt2.textContent=CFG.ruleText2||'';
-  // Tabs
+  renderMotto();
+  // Tabs（内置 + 用户自建 + 新建入口）
   const tabsEl=document.getElementById('tabs');
-  if(tabsEl){
-    tabsEl.innerHTML=CFG.tabs.map((t,i)=>'<div class="tab'+(i===0?' active':'')+'" data-tab="'+esc(t.id)+'" onclick="switchTab(\''+esc(t.id)+'\')">'+esc(t.icon)+' '+esc(t.name)+'</div>').join('');
-  }
+  if(tabsEl){ renderTabs(); }
   // Card titles
   document.querySelectorAll('[data-cfg-title]').forEach(el=>{const k=el.getAttribute('data-cfg-title');if(CFG.cardTitles[k])el.textContent=CFG.cardTitles[k];});
   // Buttons
@@ -1599,16 +1641,127 @@ function delCustomItem(gi, key) {
   toast('已删除该项', 'success');
 }
 
-// ====== 格言编辑 ======
-function editMotto() {
-  const t1 = prompt('第一行格言：', CFG.ruleText || '');
-  if (t1 === null) return;
-  const t2 = prompt('第二行格言（可留空）：', CFG.ruleText2 || '');
-  if (t2 === null) return;
-  CFG.ruleText = t1.trim();
-  CFG.ruleText2 = t2.trim();
+// ====== 自定义板块页（标签栏左滑露＋新建；内容自动保存走云同步）======
+function renderTabs() {
+  const tabsEl = document.getElementById('tabs');
+  if (!tabsEl) return;
+  let prevActive = null;
+  const prev = tabsEl.querySelector('.tab.active');
+  if (prev) prevActive = prev.getAttribute('data-tab');
+  const pct = (100 / Math.max(1, CFG.tabs.length)).toFixed(4) + '%';
+  let html = CFG.tabs.map((t, i) => '<div class="tab' + (i === 0 ? ' active' : '') + '" style="flex:0 0 ' + pct + '" data-tab="' + esc(t.id) + '" onclick="switchTab(\'' + esc(t.id) + '\')">' + esc(t.icon) + ' ' + esc(t.name) + '</div>').join('');
+  (CFG.customTabs || []).forEach(t => {
+    html += '<div class="tab" style="flex:0 0 ' + pct + '" data-tab="ct_' + t.id + '" onclick="switchTab(\'ct_' + t.id + '\')">' + esc(t.icon) + ' ' + esc(t.name) + '</div>';
+  });
+  html += '<div class="tab tab-add" onclick="openTabModal()" title="新建板块">＋</div>';
+  tabsEl.innerHTML = html;
+  if (prevActive) {
+    const t = tabsEl.querySelector('.tab[data-tab="' + prevActive + '"]');
+    if (t && prevActive !== CFG.tabs[0].id) { tabsEl.querySelector('.tab').classList.remove('active'); t.classList.add('active'); }
+  }
+  renderCustomPanels();
+}
+function renderCustomPanels() {
+  const host = document.getElementById('custom-panels');
+  if (!host) return;
+  host.innerHTML = (CFG.customTabs || []).map(t => `
+  <div class="panel" id="panel-ct_${t.id}">
+    <section>
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>${esc(t.icon)} ${esc(t.name)}</span>
+          <button class="btn btn-outline btn-sm" style="font-size:12px;padding:6px 12px" onclick="delCustomTab('${t.id}')">删除</button>
+        </div>
+        <textarea id="ct-text-${t.id}" placeholder="在这里写你的内容或描述需求（自动保存）…" style="width:100%;box-sizing:border-box;min-height:320px;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:12px;font-size:14px;line-height:1.8;resize:vertical;overscroll-behavior:contain" oninput="onCustomTabInput('${t.id}', this.value)"></textarea>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:8px;text-align:right" id="ct-saved-${t.id}"></div>
+      </div>
+    </section>
+  </div>`).join('');
+  (CFG.customTabs || []).forEach(t => {
+    const ta = document.getElementById('ct-text-' + t.id);
+    if (ta) ta.value = DB.get('ctcontent_' + t.id, '');
+  });
+}
+const ctInputTimers = {};
+function onCustomTabInput(id, val) {
+  clearTimeout(ctInputTimers[id]);
+  const el = document.getElementById('ct-saved-' + id);
+  if (el) el.textContent = '保存中…';
+  ctInputTimers[id] = setTimeout(() => {
+    DB.set('ctcontent_' + id, val);
+    if (el) { el.textContent = '已自动保存 ✓'; setTimeout(() => { if (el.textContent === '已自动保存 ✓') el.textContent = ''; }, 2500); }
+  }, 600);
+}
+let ctIcon = '📌';
+function pickTabIcon(el, icon) {
+  ctIcon = icon;
+  document.querySelectorAll('#tab-emoji-row .ce').forEach(b => b.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function openTabModal() {
+  document.getElementById('ct-name').value = '';
+  document.querySelectorAll('#tab-emoji-row .ce').forEach((b, i) => b.classList.toggle('sel', i === 0));
+  ctIcon = '📌';
+  document.getElementById('tab-overlay').classList.add('show');
+}
+function closeTabModal() { document.getElementById('tab-overlay').classList.remove('show'); }
+function saveCustomTab() {
+  const name = document.getElementById('ct-name').value.trim();
+  if (!name) { toast('请输入板块名', 'warn'); return; }
+  if (!CFG.customTabs) CFG.customTabs = [];
+  const id = Date.now();
+  CFG.customTabs.push({ id: id, icon: ctIcon, name: name });
   saveCfg();
-  applyConfig();
+  renderTabs();
+  closeTabModal();
+  switchTab('ct_' + id);
+  const tabsEl = document.getElementById('tabs');
+  if (tabsEl) tabsEl.scrollTo({ left: tabsEl.scrollWidth, behavior: 'smooth' });
+  toast(`板块「${name}」已创建 ✅`, 'success');
+}
+function delCustomTab(id) {
+  const t = (CFG.customTabs || []).find(x => String(x.id) === String(id));
+  showConfirm(`删除板块「${t ? t.name : ''}」及其全部内容？`, () => {
+    CFG.customTabs = (CFG.customTabs || []).filter(x => String(x.id) !== String(id));
+    saveCfg();
+    renderTabs();
+    switchTab('home');
+    toast('板块已删除', 'success');
+  });
+}
+
+// ====== 格言编辑（多行自定义）======
+function getMottoLines() {
+  if (Array.isArray(CFG.mottoLines) && CFG.mottoLines.length) return CFG.mottoLines.filter(l => l !== '');
+  const arr = [CFG.ruleText || ''];
+  if (CFG.ruleText2) arr.push(CFG.ruleText2);
+  return arr;
+}
+function renderMotto() {
+  const card = document.getElementById('motto-card');
+  if (!card) return;
+  const lines = getMottoLines();
+  if (!lines.length) lines.push('点击这里写下你的格言');
+  card.innerHTML = lines.map((l, i) => i === 0 ? `<div class="motto-main">${esc(l)}</div>` : `<div class="motto-sub">${esc(l)}</div>`).join('')
+    + '<button class="motto-edit-btn" onclick="event.stopPropagation();openMottoModal()" title="修改格言">✏️</button>';
+}
+function openMottoModal() {
+  document.getElementById('motto-input').value = getMottoLines().join('\n');
+  document.getElementById('motto-overlay').classList.add('show');
+}
+function closeMottoModal() { document.getElementById('motto-overlay').classList.remove('show'); }
+function saveMotto() {
+  const val = document.getElementById('motto-input').value;
+  let lines = val.split('\n').map(s => s.trim());
+  while (lines.length && !lines[lines.length - 1]) lines.pop();
+  if (!lines.length) { toast('至少写一行', 'warn'); return; }
+  CFG.mottoLines = lines;
+  // 兼容旧字段：首行/次行同步回去，老版本设备拉取也能显示
+  CFG.ruleText = lines[0];
+  CFG.ruleText2 = lines.slice(1).join('\n');
+  saveCfg();
+  renderMotto();
+  closeMottoModal();
   toast('格言已更新 ✅', 'success');
 }
 
@@ -2288,7 +2441,7 @@ checkTimeHint();
       Object.keys(CFG).forEach(k => delete CFG[k]);
       Object.assign(CFG, fresh);
     } catch (e) {}
-    try { renderTasks(); renderStats(); renderMemos(); updateCheckinUI(); updateTimerCount(); updateStudyTotal(); drawWheel(); } catch (e) {}
+    try { renderTabs(); renderMotto(); renderTasks(); renderStats(); renderMemos(); updateCheckinUI(); updateTimerCount(); updateStudyTotal(); drawWheel(); } catch (e) {}
     toast('☁️ 已从云端同步 ' + n + ' 条数据');
   }
   SYNC.pushAll(); // 拉完合并后本地⊇云端，全量推上去让历史数据也落地
