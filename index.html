@@ -46,6 +46,46 @@
     -webkit-overflow-scrolling: touch;
   }
   /* ===== Header ===== */
+  .wallpaper-layer {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-size: cover;
+    background-position: center;
+    pointer-events: none;
+  }
+  .wallpaper-btn {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid var(--border-strong);
+    color: var(--text-mid);
+    font-size: 17px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s ease, color .15s ease;
+  }
+  .wallpaper-btn:active { transform: scale(0.92); color: var(--text); }
+  .wp-veil-row { display: flex; align-items: center; gap: 12px; margin: 8px 0 2px; }
+  .wp-veil-row input[type=range] { flex: 1; accent-color: var(--accent); }
+  .wp-veil-row .wp-veil-val { font-size: 13px; color: var(--text-mid); min-width: 38px; text-align: right; }
+  .motto-edit-btn {
+    position: absolute;
+    top: 10px; right: 12px;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 14px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: color .15s ease;
+  }
+  .motto-edit-btn:active { color: var(--text); }
   header {
     background: linear-gradient(180deg, #2a2438 0%, #1a1721 100%);
     padding: 40px 20px 20px;
@@ -631,9 +671,12 @@
 </style>
 </head>
 <body>
+<!-- 壁纸层（用户自选，本地存储不上云） -->
+<div class="wallpaper-layer" id="wallpaper-layer"></div>
 
 <header>
   <div class="main-title">南浊 · 个人工作台</div>
+  <button class="wallpaper-btn" onclick="openWallpaperModal()" title="壁纸设置">👕</button>
 </header>
 
 <div class="container">
@@ -646,9 +689,10 @@
 <div class="panel active" id="panel-home">
   <!-- 模块0：格言 -->
   <section>
-    <div class="card motto-card">
+    <div class="card motto-card" style="position:relative;cursor:pointer" onclick="editMotto()" title="点击修改格言">
       <div class="motto-main" id="rule-text">天行健，君子以自强不息</div>
       <div class="motto-sub" id="rule-text-2">大道五十，天衍四九，人遁其一</div>
+      <button class="motto-edit-btn" onclick="event.stopPropagation();editMotto()" title="修改格言">✏️</button>
     </div>
   </section>
   <!-- 模块1：打卡&数据总览 -->
@@ -706,6 +750,13 @@
         <div class="tab" onclick="switchStatTab('month')" data-cfg-stattab="month">月统计</div>
       </div>
       <div id="stats-content"></div>
+    </div>
+  </section>
+  <!-- 图表生成入口（首页最下方） -->
+  <section>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button class="btn btn-outline" style="flex:1" onclick="showTaskChart('bar')">📊 柱状图</button>
+      <button class="btn btn-outline" style="flex:1" onclick="showTaskChart('pie')">🥧 饼状图</button>
     </div>
   </section>
   </div>
@@ -815,6 +866,33 @@
   </div>
 </div>
 
+<!-- 图表弹窗 -->
+<div class="modal-overlay" id="chart-overlay" onclick="if(event.target===this)closeChartModal()">
+  <div class="modal">
+    <div class="modal-header"><b style="font-size:15px" id="chart-title">各科学习量</b><button class="modal-close" style="font-size:20px" onclick="closeChartModal()">×</button></div>
+    <div id="chart-svg-wrap"></div>
+    <div style="text-align:center;font-size:11px;color:var(--text-mid);margin-top:12px">截图可直接分享</div>
+  </div>
+</div>
+
+<!-- 壁纸设置弹窗 -->
+<div class="modal-overlay" id="wallpaper-overlay" onclick="if(event.target===this)closeWallpaperModal()">
+  <div class="modal">
+    <div class="modal-header"><b style="font-size:15px">👕 壁纸设置</b><button class="modal-close" style="font-size:20px" onclick="closeWallpaperModal()">×</button></div>
+    <input type="file" accept="image/*" id="wp-file" style="display:none" onchange="uploadWallpaper(this)">
+    <div style="display:flex;gap:10px;margin-bottom:14px">
+      <label class="btn btn-green" for="wp-file" style="flex:1;text-align:center;cursor:pointer">📱 从相册选壁纸</label>
+      <button class="btn btn-outline" style="flex:0 0 auto" onclick="removeWallpaper()">移除</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-mid);margin-bottom:4px">半透明（蒙层越深字越清楚）</div>
+    <div class="wp-veil-row">
+      <input type="range" id="wp-veil" min="0" max="80" value="60" oninput="setWallpaperVeil(this.value)">
+      <span class="wp-veil-val" id="wp-veil-val">60%</span>
+    </div>
+    <div style="font-size:11px;color:var(--text-dim);margin-top:10px">壁纸只存在本机，换设备需重新设置</div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -870,7 +948,11 @@ const SYNC = {
       const j = await r.json();
       if (!j.ok || !j.data) return false;
       const local = {};
-      for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith('wb_')) local[k.slice(3)] = localStorage.getItem(k); }
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k.startsWith('wb_')) local[k.slice(3)] = localStorage.getItem(k);
+        else if (k === 'workbench_config') local['workbench_config'] = localStorage.getItem(k);
+      }
       let changed = 0;
       for (const k in j.data) {
         const cv = j.data[k], lraw = local[k];
@@ -1517,6 +1599,85 @@ function delCustomItem(gi, key) {
   toast('已删除该项', 'success');
 }
 
+// ====== 格言编辑 ======
+function editMotto() {
+  const t1 = prompt('第一行格言：', CFG.ruleText || '');
+  if (t1 === null) return;
+  const t2 = prompt('第二行格言（可留空）：', CFG.ruleText2 || '');
+  if (t2 === null) return;
+  CFG.ruleText = t1.trim();
+  CFG.ruleText2 = t2.trim();
+  saveCfg();
+  applyConfig();
+  toast('格言已更新 ✅', 'success');
+}
+
+// ====== 壁纸设置（相册上传+半透明蒙层，存本机不上云）======
+function getWallpaper() { try { return JSON.parse(localStorage.getItem('workbench_wallpaper')) || {}; } catch (e) { return {}; } }
+function saveWallpaper(w) { try { localStorage.setItem('workbench_wallpaper', JSON.stringify(w)); } catch (e) { toast('壁纸保存失败（图片过大）', 'warn'); } }
+function applyWallpaper() {
+  const w = getWallpaper();
+  const layer = document.getElementById('wallpaper-layer');
+  if (w.img) {
+    const v = (typeof w.veil === 'number') ? w.veil : 0.6;
+    layer.style.backgroundImage = 'linear-gradient(rgba(26,23,33,' + v + '),rgba(26,23,33,' + v + ')), url("' + w.img + '")';
+  } else {
+    layer.style.backgroundImage = 'none';
+  }
+}
+function openWallpaperModal() {
+  const w = getWallpaper();
+  const veil = Math.round(((typeof w.veil === 'number') ? w.veil : 0.6) * 100);
+  document.getElementById('wp-veil').value = veil;
+  document.getElementById('wp-veil-val').textContent = veil + '%';
+  document.getElementById('wallpaper-overlay').classList.add('show');
+}
+function closeWallpaperModal() { document.getElementById('wallpaper-overlay').classList.remove('show'); }
+function uploadWallpaper(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  const rd = new FileReader();
+  rd.onload = function (e) {
+    const img = new Image();
+    img.onload = function () {
+      // 压缩：最长边 1080，JPEG 0.82，防止撑爆 localStorage
+      const MAX = 1080;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(img.width * scale));
+      cv.height = Math.max(1, Math.round(img.height * scale));
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      const dataURL = cv.toDataURL('image/jpeg', 0.82);
+      const wp = getWallpaper();
+      wp.img = dataURL;
+      saveWallpaper(wp);
+      applyWallpaper();
+      toast('壁纸已应用 👕', 'success');
+    };
+    img.onerror = function () { toast('图片读取失败', 'warn'); };
+    img.src = e.target.result;
+  };
+  rd.readAsDataURL(f);
+  input.value = '';
+}
+function setWallpaperVeil(v) {
+  document.getElementById('wp-veil-val').textContent = v + '%';
+  const wp = getWallpaper();
+  wp.veil = v / 100;
+  saveWallpaper(wp);
+  applyWallpaper();
+}
+function removeWallpaper() {
+  showConfirm('移除壁纸，恢复纯色背景？', () => {
+    const wp = getWallpaper();
+    wp.img = null;
+    saveWallpaper(wp);
+    applyWallpaper();
+    closeWallpaperModal();
+    toast('已恢复默认背景', 'success');
+  });
+}
+
 function saveReview() {
   const text = document.getElementById('review-input').value.trim();
   DB.set('review_' + today(), text);
@@ -1791,6 +1952,122 @@ function shiftStatsMonth(delta) {
 function getAllTimerData() {
   return DB.get('timer_segments', {});
 }
+
+// ====== 学习分类图表（按当前统计周期聚合，弹窗生成可截图分享）======
+const CHART_COLORS = ['#a894e0', '#6cbf84', '#d4a574', '#7494d4', '#d47474', '#7bc8c9', '#c78bd4', '#9ec46e'];
+function getChartDates() {
+  const now = new Date();
+  let dates = [];
+  if (statTab === 'day') {
+    const d = new Date();
+    d.setDate(d.getDate() + statsDayOffset);
+    dates = [d.toISOString().slice(0, 10)];
+  } else if (statTab === 'week') {
+    const baseDate = new Date(now);
+    baseDate.setDate(now.getDate() + statsWeekOffset * 7);
+    const baseDay = baseDate.getDay() || 7;
+    for (let i = 1; i <= 7; i++) {
+      const d = new Date(baseDate);
+      d.setDate(baseDate.getDate() - baseDay + i);
+      dates.push(d.toISOString().slice(0, 10));
+    }
+  } else {
+    const base = new Date(now.getFullYear(), now.getMonth() + statsMonthOffset, 1);
+    const y = base.getFullYear(), m = base.getMonth();
+    const days = new Date(y, m + 1, 0).getDate();
+    for (let i = 1; i <= days; i++) dates.push(`${y}-${String(m + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`);
+  }
+  return dates;
+}
+function chartPeriodLabel() {
+  if (statTab === 'day') {
+    if (statsDayOffset === 0) return '今日';
+    const d = new Date(); d.setDate(d.getDate() + statsDayOffset);
+    return (d.getMonth() + 1) + '月' + d.getDate() + '日';
+  }
+  if (statTab === 'week') return statsWeekOffset === 0 ? '本周' : statsWeekOffset === -1 ? '上周' : '前' + (-statsWeekOffset) + '周';
+  return statsMonthOffset === 0 ? '本月' : statsMonthOffset === -1 ? '上月' : '前' + (-statsMonthOffset) + '个月';
+}
+function getCategoryStats() {
+  const dates = getChartDates();
+  const cats = [];
+  // 内置任务：按 tasks 扁平索引聚合各日记录
+  tasks.forEach((t, i) => {
+    let unit = '次', val = 0;
+    if (t.isVocab) { unit = '页'; dates.forEach(d => { val += DB.get('vocab_today_' + d, 0); }); }
+    else if (t.isMath) { unit = '考点'; dates.forEach(d => { val += DB.get('math_today_' + d, 0); }); }
+    else dates.forEach(d => { if (DB.get('tasks_' + d, []).includes(i)) val++; });
+    cats.push({ label: t.cat, unit, val });
+  });
+  // 自定义板块任务
+  (CFG.customGroups || []).forEach(g => g.items.forEach(t => {
+    const key = 'c' + t.id;
+    if (t.mode === 'page' || t.mode === 'point') {
+      const unit = t.mode === 'page' ? '页' : '考点';
+      let val = 0;
+      dates.forEach(d => { val += DB.get('ctoday_' + key + '_' + d, 0); });
+      cats.push({ label: t.cat, unit, val });
+    } else {
+      let val = 0;
+      dates.forEach(d => { if (DB.get('tasks_' + d, []).includes(key)) val++; });
+      cats.push({ label: t.cat, unit: '次', val });
+    }
+  }));
+  return cats;
+}
+function buildBarSVG(cats) {
+  const shown = cats.filter(c => c.val > 0);
+  if (!shown.length) return '<div style="text-align:center;padding:30px 0;color:var(--text-mid);font-size:14px">该周期暂无学习记录</div>';
+  const maxV = Math.max(...shown.map(c => c.val));
+  const W = 340, labelW = 92, valW = 84, rowH = 40, H = shown.length * rowH + 16;
+  let rows = '';
+  shown.forEach((c, i) => {
+    const y = i * rowH + 12;
+    const barMax = W - labelW - valW - 8;
+    const bw = Math.max(4, Math.round(c.val / maxV * barMax));
+    rows += `<text x="${labelW - 10}" y="${y + 15}" text-anchor="end" font-size="12" fill="#a8a0b8">${esc(c.label)}</text>
+      <rect x="${labelW}" y="${y}" width="${bw}" height="16" rx="8" fill="${CHART_COLORS[i % CHART_COLORS.length]}" opacity="0.9"/>
+      <text x="${labelW + bw + 8}" y="${y + 13}" font-size="12" font-weight="600" fill="#e8e4ec">${c.val}${c.unit === '次' ? ' 次' : ' ' + c.unit}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">${rows}</svg>`;
+}
+function buildPieSVG(cats) {
+  const shown = cats.filter(c => c.val > 0);
+  if (!shown.length) return '<div style="text-align:center;padding:30px 0;color:var(--text-mid);font-size:14px">该周期暂无学习记录</div>';
+  const total = shown.reduce((s, c) => s + c.val, 0);
+  const cx = 170, cy = 100, r = 72, sw = 34, C = 2 * Math.PI * r;
+  let acc = 0, arcs = '';
+  shown.forEach((c, i) => {
+    const frac = c.val / total;
+    const col = CHART_COLORS[i % CHART_COLORS.length];
+    arcs += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${col}" stroke-width="${sw}"
+      stroke-dasharray="${(frac * C).toFixed(2)} ${C.toFixed(2)}" stroke-dashoffset="${(-acc * C).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})" opacity="0.9"/>`;
+    acc += frac;
+  });
+  let legend = '';
+  shown.forEach((c, i) => {
+    const pct = Math.round(c.val / total * 100);
+    const y = 216 + i * 28;
+    legend += `<rect x="2" y="${y - 10}" width="12" height="12" rx="3" fill="${CHART_COLORS[i % CHART_COLORS.length]}"/>
+      <text x="22" y="${y}" font-size="12.5" fill="#e8e4ec">${esc(c.label)} · ${c.val}${c.unit === '次' ? ' 次' : ' ' + c.unit}</text>
+      <text x="338" y="${y}" text-anchor="end" font-size="12.5" font-weight="700" fill="#a894e0">${pct}%</text>`;
+  });
+  const H = 228 + shown.length * 28;
+  return `<svg viewBox="0 0 340 ${H}" width="100%" style="display:block">
+    ${arcs}
+    <text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="13" fill="#a8a0b8">合计</text>
+    <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="15" font-weight="700" fill="#e8e4ec">${total}</text>
+    ${legend}
+  </svg>`;
+}
+function showTaskChart(type) {
+  const cats = getCategoryStats();
+  document.getElementById('chart-title').textContent = '各科学习量 · ' + chartPeriodLabel();
+  document.getElementById('chart-svg-wrap').innerHTML = type === 'pie' ? buildPieSVG(cats) : buildBarSVG(cats);
+  document.getElementById('chart-overlay').classList.add('show');
+}
+function closeChartModal() { document.getElementById('chart-overlay').classList.remove('show'); }
+
 function getStatsData(period) {
   const data = getAllTimerData();
   const now = new Date();
@@ -1989,6 +2266,7 @@ updateClock();
 setInterval(updateClock, 1000);
 
 // ====== Init ======
+applyWallpaper();
 applyConfig();
 updateCheckinUI();
 updateTimerCount();
