@@ -2484,13 +2484,11 @@ function renderStats() {
     if (segs.length) {
       html += `<div class="section-label" style="margin-top:12px">${L.seg_detail || '分段明细'}</div>`;
       html += segs.map(s => {
-        const st = new Date(s.start), en = new Date(s.end);
-        return `<div class="stat-row"><span>${s.subject ? '[' + s.subject + '] ' : ''}${s.manual ? '加时' : st.toTimeString().slice(0,5)+'-'+en.toTimeString().slice(0,5)}</span><b>${fmtMin(s.duration)}</b></div>`;
+        return `<div class="stat-row"><span>${s.subject ? '[' + s.subject + ']' : ''}</span><b>${fmtMin(s.duration)}</b></div>`;
       }).join('');
     }
     if (liveSec > 0) {
-      const stT = new Date(timerStart).toTimeString().slice(0,5);
-      html += `<div class="stat-row"><span>${timerSubject ? '[' + timerSubject + '] ' : ''}${stT}-当前</span><b style="color:var(--orange)">⏱ ${fmtMin(liveSec)} 进行中</b></div>`;
+      html += `<div class="stat-row"><span>${timerSubject ? '[' + timerSubject + ']' : ''}</span><b style="color:var(--orange)">⏱ ${fmtMin(liveSec)} 进行中</b></div>`;
     }
     if (!segs.length && !liveSec) {
       html += `<div class="empty">${statsDayOffset === 0 ? (L.no_data||'今日暂无记录') : '当日暂无记录'}</div>`;
