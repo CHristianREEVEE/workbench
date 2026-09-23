@@ -551,6 +551,12 @@
   .ce.sel { border-color: var(--accent); background: var(--accent-glow); }
   .cm { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text-mid); font-size: 14px; padding: 10px 0; cursor: pointer; }
   .cm.sel { border-color: var(--accent); background: var(--accent-glow); color: var(--text); font-weight: 600; }
+  .hm-mode { background: var(--bg-2); border: 1px solid var(--border); border-radius: 999px; color: var(--text-mid); font-size: 12px; padding: 6px 16px; cursor: pointer; transition: all .15s ease; }
+  .hm-mode.sel { border-color: var(--accent); background: var(--accent-glow); color: var(--text); font-weight: 600; }
+  .hmcol { display: flex; flex-direction: column; gap: 3px; }
+  .hmc { width: 13px; height: 13px; border-radius: 3px; cursor: pointer; flex-shrink: 0; }
+  .hmwd { width: 12px; height: 13px; font-size: 9px; color: var(--text-dim); display: flex; align-items: center; justify-content: center; }
+  .hmml { font-size: 9px; color: var(--text-dim); height: 12px; line-height: 12px; white-space: nowrap; overflow: visible; }
   .tab-row { display: flex; gap: 4px; margin-bottom: 16px; }
   .tab-row .tab {
     flex: 1;
@@ -757,6 +763,27 @@
     <div style="display:flex;gap:8px;margin-bottom:16px">
       <button class="btn btn-outline" style="flex:1" onclick="showTaskChart('bar')">📊 柱状图</button>
       <button class="btn btn-outline" style="flex:1" onclick="showTaskChart('pie')">🥧 饼状图</button>
+    </div>
+  </section>
+  <!-- 努力全景（学习热力图：月视图/总览，点格子跳当天统计） -->
+  <section>
+    <div class="card">
+      <div class="card-title">💪 努力全景</div>
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button class="hm-mode sel" data-m="month" onclick="setHeatMode('month')">📅 月</button>
+        <button class="hm-mode" data-m="all" onclick="setHeatMode('all')">总览</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <button class="btn btn-sm btn-outline" style="min-width:36px" onclick="shiftHeatMonth(-1)" id="heat-prev">◀</button>
+        <span id="heat-label" style="font-size:13px;color:var(--text-mid)">本月</span>
+        <button class="btn btn-sm btn-outline" style="min-width:36px" onclick="shiftHeatMonth(1)" id="heat-next">▶</button>
+      </div>
+      <div id="heat-wrap" style="overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;padding-bottom:4px"></div>
+      <div style="display:flex;justify-content:flex-end;align-items:center;gap:4px;margin-top:6px">
+        <span style="font-size:11px;color:var(--text-dim)">少</span>
+        <div style="display:flex;gap:2px" id="heat-legend"></div>
+        <span style="font-size:11px;color:var(--text-dim)">多</span>
+      </div>
     </div>
   </section>
   </div>
@@ -1195,6 +1222,7 @@ function stopTimer() {
   updateAdjustUI();
   updateTimerCount();
   updateStudyTotal();
+  renderHeat(); // 今天的格子立即亮起来
   if (statTab === 'day') renderStats(); // 结束计时后底部统计立刻落账
 }
 function updateTimerDisplay() {
@@ -2245,6 +2273,117 @@ function showTaskChart(type) {
 }
 function closeChartModal() { document.getElementById('chart-overlay').classList.remove('show'); }
 
+// ====== 努力全景（学习热力图：月视图/总览，蓝色梯度，点格子跳当天统计）======
+let heatMode = 'month', heatMonthOffset = 0;
+const HEAT_COLORS = ['rgba(255,255,255,0.07)', '#223a5e', '#33568c', '#4f7cff', '#8fb7ff'];
+function heatLevel(sec) { if (!sec) return 0; if (sec < 1800) return 1; if (sec < 3600) return 2; if (sec < 7200) return 3; return 4; }
+function getHeatData() {
+  const data = getAllTimerData();
+  const map = {};
+  for (const d in data) map[d] = data[d].reduce((s, x) => s + (x.duration || 0), 0);
+  return map;
+}
+function pad2(n) { return String(n).padStart(2, '0'); }
+function heatCell(ds, sec, size) {
+  const lv = heatLevel(sec);
+  const label = ds.slice(5).replace('-', '/') + ' ' + (sec ? fmtMin(sec) : '无记录');
+  return '<div class="hmc" style="width:' + size + 'px;height:' + size + 'px;background:' + HEAT_COLORS[lv] + '" title="' + label + '" onclick="heatJump(\'' + ds + '\')"></div>';
+}
+function setHeatMode(m) {
+  heatMode = m;
+  document.querySelectorAll('.hm-mode').forEach(b => b.classList.toggle('sel', b.getAttribute('data-m') === m));
+  const isMonth = m === 'month';
+  document.getElementById('heat-prev').style.visibility = isMonth ? 'visible' : 'hidden';
+  document.getElementById('heat-next').style.visibility = isMonth ? 'visible' : 'hidden';
+  renderHeat();
+}
+function renderHeat() {
+  const wrap = document.getElementById('heat-wrap');
+  if (!wrap) return;
+  const data = getHeatData();
+  const todayStr = today();
+  const wdHtml = '<div class="hmcol">' + ['一', '', '三', '', '五', '', ''].map(w => '<div class="hmwd">' + w + '</div>').join('') + '</div>';
+  let html = '', labelText = '';
+  if (heatMode === 'month') {
+    const now = new Date();
+    const base = new Date(now.getFullYear(), now.getMonth() + heatMonthOffset, 1);
+    const y = base.getFullYear(), m = base.getMonth();
+    const days = new Date(y, m + 1, 0).getDate();
+    const firstDow = (new Date(y, m, 1).getDay() + 6) % 7;
+    const nCols = Math.ceil((firstDow + days) / 7);
+    const size = 18, gap = 3;
+    let monthSec = 0, colsHtml = '';
+    for (let c = 0; c < nCols; c++) {
+      let colCells = '';
+      for (let r = 0; r < 7; r++) {
+        const dayNum = c * 7 + r - firstDow + 1;
+        if (dayNum < 1 || dayNum > days) { colCells += '<div class="hmc" style="width:' + size + 'px;height:' + size + 'px;visibility:hidden"></div>'; continue; }
+        const ds = y + '-' + pad2(m + 1) + '-' + pad2(dayNum);
+        const sec = data[ds] || 0;
+        monthSec += sec;
+        const cell = heatCell(ds, sec, size);
+        colCells += ds > todayStr ? cell.replace('background:', 'opacity:.3;background:') : cell;
+      }
+      colsHtml += '<div class="hmcol" style="gap:' + gap + 'px">' + colCells + '</div>';
+    }
+    html = '<div style="display:flex;gap:' + gap + 'px;justify-content:center">' + wdHtml.replace(/hmwd/g, 'hmwd') + colsHtml + '</div>';
+    labelText = y + '年' + (m + 1) + '月 · ' + (heatMonthOffset === 0 ? '本月 ' : '') + fmtMin(monthSec);
+    document.getElementById('heat-next').style.visibility = heatMonthOffset >= 0 ? 'hidden' : 'visible';
+  } else {
+    // 总览：从首条记录的周一到本周，月标签行 + 周列（13px 小格子，横向滚动）
+    const keys = Object.keys(data).sort();
+    let start = keys.length ? new Date(keys[0] + 'T00:00:00') : new Date(Date.now() - 35 * 86400000);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (start.getDay() + 6) % 7);
+    const end = new Date(); end.setHours(0, 0, 0, 0);
+    const size = 13, gap = 3;
+    let total = 0, colsHtml = '', mrow = '';
+    let lastM = -1;
+    const cur = new Date(start);
+    while (cur <= end) {
+      const isNewMonth = cur.getDate() <= 7 && cur.getMonth() !== lastM;
+      if (isNewMonth) lastM = cur.getMonth();
+      mrow += '<div class="hmml" style="width:' + size + 'px">' + (isNewMonth ? (cur.getMonth() + 1) + '月' : '') + '</div>';
+      let colCells = '';
+      for (let r = 0; r < 7; r++) {
+        const ds = cur.getFullYear() + '-' + pad2(cur.getMonth() + 1) + '-' + pad2(cur.getDate());
+        const sec = data[ds] || 0;
+        total += sec;
+        colCells += heatCell(ds, sec, size);
+        cur.setDate(cur.getDate() + 1);
+      }
+      colsHtml += '<div class="hmcol" style="gap:' + gap + 'px">' + colCells + '</div>';
+    }
+    const wdSmall = '<div class="hmcol" style="gap:' + gap + 'px;padding-top:15px">' + ['一', '', '三', '', '五', '', ''].map(w => '<div class="hmwd">' + w + '</div>').join('') + '</div>';
+    html = '<div style="display:flex;gap:' + gap + 'px;min-width:max-content">' + wdSmall +
+      '<div><div style="display:flex;gap:' + gap + 'px;margin-bottom:3px">' + mrow + '</div>' +
+      '<div style="display:flex;gap:' + gap + 'px">' + colsHtml + '</div></div></div>';
+    labelText = '总览 · ' + keys.length + ' 天里学了 ' + fmtMin(total);
+  }
+  wrap.innerHTML = html;
+  document.getElementById('heat-label').textContent = labelText;
+  const legend = document.getElementById('heat-legend');
+  if (legend && !legend.childElementCount) {
+    legend.innerHTML = HEAT_COLORS.map(c => '<div style="width:12px;height:12px;border-radius:3px;background:' + c + '"></div>').join('');
+  }
+}
+function shiftHeatMonth(delta) {
+  const next = heatMonthOffset + delta;
+  if (next > 0) return;
+  heatMonthOffset = next;
+  renderHeat();
+}
+function heatJump(ds) {
+  const target = new Date(ds + 'T00:00:00');
+  const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+  statsDayOffset = Math.round((target - t0) / 86400000);
+  statTab = 'day';
+  document.querySelectorAll('#stats-tab-row .tab').forEach((t, i) => t.classList.toggle('active', i === 0));
+  renderStats();
+  const sec = getHeatData()[ds] || 0;
+  toast(ds.slice(5).replace('-', '/') + ' · ' + (sec ? fmtMin(sec) : '无记录'), 'success');
+}
+
 function getStatsData(period) {
   const data = getAllTimerData();
   const now = new Date();
@@ -2451,6 +2590,7 @@ updateStudyTotal();
 restoreTimer();
 renderTasks();
 renderStats();
+renderHeat();
 renderMemos();
 drawWheel();
 checkTimeHint();
@@ -2465,7 +2605,7 @@ checkTimeHint();
       Object.keys(CFG).forEach(k => delete CFG[k]);
       Object.assign(CFG, fresh);
     } catch (e) {}
-    try { renderTabs(); renderMotto(); renderTasks(); renderStats(); renderMemos(); updateCheckinUI(); updateTimerCount(); updateStudyTotal(); drawWheel(); } catch (e) {}
+    try { renderTabs(); renderMotto(); renderTasks(); renderStats(); renderHeat(); renderMemos(); updateCheckinUI(); updateTimerCount(); updateStudyTotal(); drawWheel(); } catch (e) {}
     toast('☁️ 已从云端同步 ' + n + ' 条数据');
   }
   SYNC.pushAll(); // 拉完合并后本地⊇云端，全量推上去让历史数据也落地
