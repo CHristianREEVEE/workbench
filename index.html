@@ -579,7 +579,7 @@
   .stat-bar .bar-bg { flex:1; height: 16px; background: var(--card-solid); border-radius: 8px; overflow: hidden; }
   .stat-bar .bar-fill { height: 100%; background: var(--accent); border-radius: 8px; transition: width .5s; }
   .stat-bar .bar-label { width: 50px; color: var(--text-dim); }
-  .stat-bar .bar-value { width: 64px; text-align: right; color: var(--text); font-size: 10.5px; }
+  .stat-bar .bar-value { width: 86px; text-align: right; color: var(--text); font-size: 10px; }
   /* ===== Toast ===== */
   .toast {
     position: fixed;
@@ -1111,10 +1111,10 @@ function fmtTime(s) {
   const h = Math.floor(s/3600), m = Math.floor(s%3600/60), sec = s%60;
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
-function fmtMin(s) { const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return h > 0 ? h + '小时' + (m > 0 ? m + '分钟' : '') : m + '分钟'; }
+function fmtMin(s) { const h = s / 3600, m = Math.round(s / 60); return h >= 1 ? h.toFixed(1) + '小时（' + m + '分钟）' : m + '分钟'; }
 function fmtHour(s) { return fmtMin(s); }
 function fmtDual(s) { return fmtMin(s); }
-function fmtBar(s) { const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return h > 0 ? h + '小时' + m + '分' : m + '分'; }
+function fmtBar(s) { const h = s / 3600, m = Math.round(s / 60); return h >= 1 ? h.toFixed(1) + '小时（' + m + '分）' : m + '分'; }
 
 // ====== Module 1: Check-in ======
 function getCheckins() { return DB.get('checkins', []); }
@@ -2374,14 +2374,7 @@ function shiftHeatMonth(delta) {
 }
 function heatJump(ds) {
   const sec = getHeatData()[ds] || 0;
-  let txt;
-  if (!sec) txt = '无记录';
-  else {
-    const h = Math.floor(sec / 3600);
-    const m = Math.round((sec % 3600) / 60);
-    txt = (h > 0 ? h + '小时' : '') + (m > 0 ? m + '分钟' : '') || '不足1分钟';
-  }
-  toast(ds.slice(5).replace('-', '/') + ' · ' + txt, 'success');
+  toast(ds.slice(5).replace('-', '/') + ' · ' + (sec ? fmtMin(sec) : '无记录'), 'success');
 }
 
 function getStatsData(period) {
