@@ -507,6 +507,8 @@
   @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
   .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
   .modal-close { background: none; border: none; color: var(--text-dim); font-size: 24px; cursor: pointer; min-width:44px; min-height:44px; }
+  .ce { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 18px; padding: 6px 10px; cursor: pointer; }
+  .ce.sel { border-color: var(--accent); background: var(--accent-glow); }
   .tab-row { display: flex; gap: 4px; margin-bottom: 16px; }
   .tab-row .tab {
     flex: 1;
@@ -680,7 +682,7 @@
         <button class="btn btn-red" id="timer-stop" onclick="stopTimer()" disabled data-cfg-btn="timer_stop">■ 结束计时</button>
       </div>
       <div class="timer-adjust">
-        <span style="font-size:12px;color:var(--text-dim)">补时</span>
+        <span style="font-size:13px;color:var(--text-mid)">补时</span>
         <button class="ta-btn" onclick="adjustTimer(-10)">−10分</button>
         <button class="ta-btn" onclick="adjustTimer(-1)">−1分</button>
         <button class="ta-btn" onclick="adjustTimer(1)">+1分</button>
@@ -688,7 +690,7 @@
         <button class="ta-btn" onclick="adjustTimer(60)">+1时</button>
       </div>
       <div id="ta-pending" class="ta-pending"></div>
-      <div style="text-align:center;margin-top:8px;font-size:13px;color:var(--text-dim)" id="timer-count">今日 0 段 · 共 0 分钟</div>
+      <div style="text-align:center;margin-top:8px;font-size:14px;color:var(--text-mid)" id="timer-count">今日 0 段 · 共 0 分钟</div>
       <div style="text-align:center;margin-top:6px;font-size:13px;font-weight:600;color:#c07f00" id="timer-record"></div>
     </div>
   </section>
@@ -763,6 +765,43 @@
     <div class="confirm-btns">
       <button class="btn btn-outline btn-sm" onclick="closeConfirm()">取消</button>
       <button class="btn btn-red btn-sm" id="confirm-ok-btn">删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 自定义板块弹窗 -->
+<div class="modal-overlay" id="custom-overlay" onclick="if(event.target===this)closeCustomModal()">
+  <div class="modal">
+    <div class="modal-header"><b style="font-size:16px">＋ 自定义板块</b><button class="modal-close" onclick="closeCustomModal()" style="font-size:20px">×</button></div>
+    <div style="font-size:12px;color:var(--text-mid);margin:-6px 0 14px">新书/新科目自己加，存在本机浏览器里</div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--text-mid);margin-bottom:4px">主题（板块名，留空=待定；填已有的就归到一起）</div>
+      <input id="cg-topic" placeholder="如：考研 / 待定" style="width:100%;box-sizing:border-box;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:14px">
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--text-mid);margin-bottom:4px">名称（书名 / 科目）</div>
+      <input id="cg-name" placeholder="如：政治精讲" style="width:100%;box-sizing:border-box;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:14px">
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--text-mid);margin-bottom:4px">备注（可留空）</div>
+      <input id="cg-desc" placeholder="如：每日 1 章" style="width:100%;box-sizing:border-box;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:14px">
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;color:var(--text-mid);margin-bottom:6px">图标</div>
+      <div id="custom-emoji-row" style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="ce sel" onclick="pickCustomIcon(this,'📘')">📘</button>
+        <button class="ce" onclick="pickCustomIcon(this,'📖')">📖</button>
+        <button class="ce" onclick="pickCustomIcon(this,'📝')">📝</button>
+        <button class="ce" onclick="pickCustomIcon(this,'🎧')">🎧</button>
+        <button class="ce" onclick="pickCustomIcon(this,'🧠')">🧠</button>
+        <button class="ce" onclick="pickCustomIcon(this,'📌')">📌</button>
+        <button class="ce" onclick="pickCustomIcon(this,'🀄')">🀄</button>
+        <button class="ce" onclick="pickCustomIcon(this,'🧩')">🧩</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-outline" style="flex:1" onclick="closeCustomModal()">取消</button>
+      <button class="btn btn-green" style="flex:1" onclick="saveCustomBlock()">添加</button>
     </div>
   </div>
 </div>
@@ -1108,7 +1147,7 @@ function loadConfig(){
 }
 const CFG=loadConfig();
 const MATH_TOTAL=CFG.mathTotal;
-const VOCAB_TOTAL=CFG.vocabTotal;
+const VOCAB_TOTAL=CFG.vocabTotal; // 仅作初始参考，加页后以 CFG.vocabTotal 为准
 const taskGroups=CFG.taskGroups;
 const tasks=taskGroups.flatMap(g=>g.items.map(t=>({...t,group:g.label})));
 function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
@@ -1168,11 +1207,12 @@ function renderTasks() {
       } else if (t.isVocab) {
         const vocabToday = getVocabToday();
         const total = count;
-        const pct = Math.round(total / VOCAB_TOTAL * 100);
+        const vTotal = CFG.vocabTotal;
+        const pct = Math.round(total / vTotal * 100);
         html += `
           <div class="checklist-item" style="flex-wrap:wrap;cursor:default">
             <span class="item-text" style="flex:1"><b>${t.cat}</b></span>
-            <span class="item-count" style="background:rgba(167,139,250,0.12);color:var(--accent-light)">${total}/${VOCAB_TOTAL}</span>
+            <span class="item-count" style="background:rgba(167,139,250,0.12);color:var(--accent-light)">${total}/${vTotal}</span>
             <div style="width:100%">
               <div class="math-progress-bar"><div class="math-progress-fill" style="width:${pct}%"></div></div>
               <div class="math-progress-label"><span>已背 ${total} 页 · 今日 ${vocabToday}</span><span>${pct}%</span></div>
@@ -1180,6 +1220,7 @@ function renderTasks() {
             <div style="width:100%;display:flex;gap:6px;margin-top:6px">
               <input type="number" id="vocab-input" placeholder="今日页数" min="1" style="flex:1;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-size:14px;text-align:center" onkeydown="if(event.key==='Enter')addVocab()">
               <button class="btn btn-sm btn-green" style="flex:0 0 auto;padding:8px 16px" onclick="addVocab()">记录</button>
+              <button class="btn btn-sm btn-outline" style="flex:0 0 auto;padding:8px 12px" onclick="promptVocabTotal()">＋总页</button>
             </div>
           </div>`;
       } else {
@@ -1194,6 +1235,24 @@ function renderTasks() {
       idx++;
     });
   });
+  // ===== 自定义板块（用户自建，存 CFG.customGroups）=====
+  (CFG.customGroups || []).forEach((g, gi) => {
+    html += `<div class="task-group-label" style="display:flex;justify-content:space-between;align-items:center"><span>${esc(g.icon)} ${esc(g.label)}</span><span style="cursor:pointer;color:var(--red);font-size:18px;padding:0 8px;line-height:1" onclick="delCustomGroup(${gi})" title="删除该板块">×</span></div>`;
+    g.items.forEach(t => {
+      const key = 'c' + t.id;
+      const cDone = done.includes(key);
+      const cCount = counts[key] || 0;
+      html += `
+          <div class="checklist-item ${cDone ? 'done' : ''}" onclick="toggleCustomTask('${key}')">
+            <div class="checkbox ${cDone ? 'checked' : ''}">${cDone ? '✓' : ''}</div>
+            <span class="item-text"><b>${esc(t.cat)}</b>${t.desc ? ' — ' + esc(t.desc) : ''}</span>
+            <span class="item-count">${cCount}次</span>
+            <span class="item-time">${esc(t.time || '每日')}</span>
+            <span style="cursor:pointer;color:var(--red);font-size:18px;padding:0 4px;line-height:1;flex:0 0 auto" onclick="event.stopPropagation();delCustomItem(${gi},'${key}')" title="删除该项">×</span>
+          </div>`;
+    });
+  });
+  html += `<button class="btn btn-outline" style="width:100%;margin-top:12px;border-style:dashed" onclick="openCustomModal()">＋ 自定义板块</button>`;
   list.innerHTML = html;
 }
 function addMath(n) {
@@ -1216,6 +1275,18 @@ function addVocab() {
   toast(`英二闪背 +${n} 页 ✅`, 'success');
   renderTasks();
 }
+function saveCfg() {
+  try { localStorage.setItem('workbench_config', JSON.stringify(CFG)); } catch (e) {}
+}
+function promptVocabTotal() {
+  const cur = CFG.vocabTotal;
+  const n = parseInt(prompt(`新增页数（当前总页数 ${cur}，输负数可回退）：`));
+  if (!n || isNaN(n)) return;
+  CFG.vocabTotal = Math.max(1, cur + n);
+  saveCfg();
+  toast(`总页数：${cur} → ${CFG.vocabTotal} 页 ✅`, 'success');
+  renderTasks();
+}
 function toggleTask(i) {
   let done = getTasksDone();
   let counts = getTaskCounts();
@@ -1230,6 +1301,72 @@ function toggleTask(i) {
   setTasksDone(done);
   setTaskCounts(counts);
   renderTasks();
+}
+
+// ===== 自定义板块操作 =====
+let customIcon = '📘';
+function pickCustomIcon(el, icon) {
+  customIcon = icon;
+  document.querySelectorAll('#custom-emoji-row .ce').forEach(b => b.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function openCustomModal() {
+  document.getElementById('cg-topic').value = '';
+  document.getElementById('cg-name').value = '';
+  document.getElementById('cg-desc').value = '';
+  document.querySelectorAll('#custom-emoji-row .ce').forEach((b, i) => b.classList.toggle('sel', i === 0));
+  customIcon = '📘';
+  document.getElementById('custom-overlay').classList.add('show');
+}
+function closeCustomModal() { document.getElementById('custom-overlay').classList.remove('show'); }
+function saveCustomBlock() {
+  const topic = document.getElementById('cg-topic').value.trim() || '待定';
+  const name = document.getElementById('cg-name').value.trim();
+  const desc = document.getElementById('cg-desc').value.trim();
+  if (!name) { toast('请输入名称', 'warn'); return; }
+  if (!CFG.customGroups) CFG.customGroups = [];
+  let g = CFG.customGroups.find(x => x.label === topic);
+  if (!g) { g = { label: topic, icon: customIcon, items: [] }; CFG.customGroups.push(g); }
+  g.items.push({ id: Date.now(), cat: name, desc: desc, time: '每日' });
+  saveCfg();
+  closeCustomModal();
+  renderTasks();
+  toast(`已添加「${name}」到 ${g.icon} ${topic} ✅`, 'success');
+}
+function toggleCustomTask(key) {
+  let done = getTasksDone();
+  let counts = getTaskCounts();
+  if (done.includes(key)) {
+    done = done.filter(x => x !== key);
+    counts[key] = Math.max(0, (counts[key] || 0) - 1);
+  } else {
+    done.push(key);
+    counts[key] = (counts[key] || 0) + 1;
+    toast('已完成 ✅', 'success');
+  }
+  setTasksDone(done);
+  setTaskCounts(counts);
+  renderTasks();
+}
+function delCustomGroup(gi) {
+  const g = (CFG.customGroups || [])[gi];
+  if (!g) return;
+  showConfirm(`删除整个「${g.label}」板块？（${g.items.length} 项一并删除）`, () => {
+    CFG.customGroups.splice(gi, 1);
+    saveCfg();
+    renderTasks();
+    toast('板块已删除', 'success');
+  });
+}
+function delCustomItem(gi, key) {
+  const g = (CFG.customGroups || [])[gi];
+  if (!g) return;
+  const id = String(key).slice(1);
+  g.items = g.items.filter(t => String(t.id) !== id);
+  if (!g.items.length) CFG.customGroups.splice(gi, 1);
+  saveCfg();
+  renderTasks();
+  toast('已删除该项', 'success');
 }
 
 function saveReview() {
