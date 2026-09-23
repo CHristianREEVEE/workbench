@@ -2302,7 +2302,6 @@ function renderHeat() {
   if (!wrap) return;
   const data = getHeatData();
   const todayStr = today();
-  const wdHtml = '<div class="hmcol">' + ['一', '', '三', '', '五', '', ''].map(w => '<div class="hmwd">' + w + '</div>').join('') + '</div>';
   let html = '', labelText = '';
   if (heatMode === 'month') {
     const now = new Date();
@@ -2326,7 +2325,7 @@ function renderHeat() {
       }
       colsHtml += '<div class="hmcol" style="gap:' + gap + 'px">' + colCells + '</div>';
     }
-    html = '<div style="display:flex;gap:' + gap + 'px;justify-content:center">' + wdHtml.replace(/hmwd/g, 'hmwd') + colsHtml + '</div>';
+    html = '<div style="display:flex;gap:' + gap + 'px;justify-content:center">' + colsHtml + '</div>';
     labelText = y + '年' + (m + 1) + '月 · ' + (heatMonthOffset === 0 ? '本月 ' : '') + fmtMin(monthSec);
     document.getElementById('heat-next').style.visibility = heatMonthOffset >= 0 ? 'hidden' : 'visible';
   } else {
@@ -2354,8 +2353,7 @@ function renderHeat() {
       }
       colsHtml += '<div class="hmcol" style="gap:' + gap + 'px">' + colCells + '</div>';
     }
-    const wdSmall = '<div class="hmcol" style="gap:' + gap + 'px;padding-top:15px">' + ['一', '', '三', '', '五', '', ''].map(w => '<div class="hmwd">' + w + '</div>').join('') + '</div>';
-    html = '<div style="display:flex;gap:' + gap + 'px;min-width:max-content">' + wdSmall +
+    html = '<div style="display:flex;gap:' + gap + 'px;min-width:max-content">' +
       '<div><div style="display:flex;gap:' + gap + 'px;margin-bottom:3px">' + mrow + '</div>' +
       '<div style="display:flex;gap:' + gap + 'px">' + colsHtml + '</div></div></div>';
     labelText = '总览 · ' + keys.length + ' 天里学了 ' + fmtMin(total);
@@ -2374,14 +2372,15 @@ function shiftHeatMonth(delta) {
   renderHeat();
 }
 function heatJump(ds) {
-  const target = new Date(ds + 'T00:00:00');
-  const t0 = new Date(); t0.setHours(0, 0, 0, 0);
-  statsDayOffset = Math.round((target - t0) / 86400000);
-  statTab = 'day';
-  document.querySelectorAll('#stats-tab-row .tab').forEach((t, i) => t.classList.toggle('active', i === 0));
-  renderStats();
   const sec = getHeatData()[ds] || 0;
-  toast(ds.slice(5).replace('-', '/') + ' · ' + (sec ? fmtMin(sec) : '无记录'), 'success');
+  let txt;
+  if (!sec) txt = '无记录';
+  else {
+    const h = Math.floor(sec / 3600);
+    const m = Math.round((sec % 3600) / 60);
+    txt = (h > 0 ? h + '小时' : '') + (m > 0 ? m + '分钟' : '') || '不足1分钟';
+  }
+  toast(ds.slice(5).replace('-', '/') + ' · ' + txt, 'success');
 }
 
 function getStatsData(period) {
