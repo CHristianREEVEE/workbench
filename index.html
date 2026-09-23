@@ -2184,33 +2184,57 @@ function buildBarSVG(cats) {
   });
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">${rows}</svg>`;
 }
+const PIE_COLORS = ['#e08e94', '#9fd4bd', '#6496a8', '#d4bc7e', '#b79de0', '#84a9de', '#e0987e', '#a2c9a5'];
 function buildPieSVG(cats) {
   const shown = cats.filter(c => c.val > 0);
   if (!shown.length) return '<div style="text-align:center;padding:30px 0;color:var(--text-mid);font-size:14px">该周期暂无学习记录</div>';
   const total = shown.reduce((s, c) => s + c.val, 0);
-  const cx = 170, cy = 100, r = 72, sw = 34, C = 2 * Math.PI * r;
-  let acc = 0, arcs = '';
-  shown.forEach((c, i) => {
+  const W = 340, cx = 170, cy = 112, r = 84;
+  const polar = (rr, ang) => [cx + rr * Math.cos(ang), cy + rr * Math.sin(ang)];
+  let acc = -Math.PI / 2;
+  let sectors = '', labels = '', leaders = '';
+  if (shown.length === 1) {
+    // 单科独占整圆：circle 兜底（arc 会退化）
+    sectors = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${PIE_COLORS[0]}" opacity="0.92"/>`;
+    labels = `<text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="12" font-weight="600" fill="#23202b">${esc(shown[0].label)}</text>`;
+  } else shown.forEach((c, i) => {
     const frac = c.val / total;
-    const col = CHART_COLORS[i % CHART_COLORS.length];
-    arcs += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${col}" stroke-width="${sw}"
-      stroke-dasharray="${(frac * C).toFixed(2)} ${C.toFixed(2)}" stroke-dashoffset="${(-acc * C).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})" opacity="0.9"/>`;
-    acc += frac;
+    const a0 = acc, a1 = acc + frac * 2 * Math.PI; acc = a1;
+    const am = (a0 + a1) / 2;
+    const [x1, y1] = polar(r, a0), [x2, y2] = polar(r, a1);
+    const large = (a1 - a0) > Math.PI ? 1 : 0;
+    const col = PIE_COLORS[i % PIE_COLORS.length];
+    sectors += `<path d="M${cx},${cy} L${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${large} 1 ${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="${col}" opacity="0.92"/>`;
+    // 扇区内写科目名（占比足够大才放，深色字压浅色扇区）
+    if (frac >= 0.13) {
+      const [lx, ly] = polar(r * 0.62, am);
+      labels += `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="600" fill="#23202b">${esc(c.label)}</text>`;
+    }
+    // 引导线：扇区边缘 → 外扩点 → 水平短线 → 数值
+    if (frac >= 0.07) {
+      const cs = Math.cos(am), sn = Math.sin(am);
+      const [ex, ey] = polar(r, am);
+      const [jx, jy] = polar(r + 9, am);
+      const side = Math.abs(cs) < 0.35 ? 0 : (cs > 0 ? 1 : -1);
+      const hx = jx + side * 26;
+      leaders += `<polyline points="${ex.toFixed(1)},${ey.toFixed(1)} ${jx.toFixed(1)},${jy.toFixed(1)} ${hx.toFixed(1)},${jy.toFixed(1)}" fill="none" stroke="#6e6878" stroke-width="1"/>
+        <text x="${(hx + side * 5).toFixed(1)}" y="${(jy + 4).toFixed(1)}" text-anchor="${side === 0 ? 'middle' : (side > 0 ? 'start' : 'end')}" font-size="11" fill="#e8e4ec">${c.val}${c.unit === '次' ? ' 次' : ' ' + c.unit}</text>`;
+    }
   });
-  let legend = '';
+  // 总计 + 图例（参考图样式：百分比 | 色点 | 名称 …… 数值）
+  const totalY = cy + r + 34;
+  let legend = `<text x="${cx}" y="${totalY}" text-anchor="middle" font-size="14" font-weight="700" fill="#e8e4ec">总计 ${total}</text>`;
   shown.forEach((c, i) => {
-    const pct = Math.round(c.val / total * 100);
-    const y = 216 + i * 28;
-    legend += `<rect x="2" y="${y - 10}" width="12" height="12" rx="3" fill="${CHART_COLORS[i % CHART_COLORS.length]}"/>
-      <text x="22" y="${y}" font-size="12.5" fill="#e8e4ec">${esc(c.label)} · ${c.val}${c.unit === '次' ? ' 次' : ' ' + c.unit}</text>
-      <text x="338" y="${y}" text-anchor="end" font-size="12.5" font-weight="700" fill="#a894e0">${pct}%</text>`;
+    const pct = (c.val / total * 100).toFixed(1).replace(/\.0$/, '');
+    const y = totalY + 24 + i * 27;
+    legend += `<text x="4" y="${y}" font-size="11" fill="#6e6878">${pct}%</text>
+      <rect x="52" y="${y - 10}" width="12" height="12" rx="3" fill="${PIE_COLORS[i % PIE_COLORS.length]}"/>
+      <text x="72" y="${y}" font-size="12.5" fill="#e8e4ec">${esc(c.label)}</text>
+      <text x="336" y="${y}" text-anchor="end" font-size="12" fill="#a8a0b8">${c.val}${c.unit === '次' ? ' 次' : ' ' + c.unit}</text>`;
   });
-  const H = 228 + shown.length * 28;
-  return `<svg viewBox="0 0 340 ${H}" width="100%" style="display:block">
-    ${arcs}
-    <text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="13" fill="#a8a0b8">合计</text>
-    <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="15" font-weight="700" fill="#e8e4ec">${total}</text>
-    ${legend}
+  const H = totalY + 40 + shown.length * 27;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">
+    ${sectors}${labels}${leaders}${legend}
   </svg>`;
 }
 function showTaskChart(type) {
