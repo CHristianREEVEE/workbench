@@ -835,6 +835,85 @@ const DB = {
   set(key, val) { localStorage.setItem('wb_' + key, JSON.stringify(val)); }
 };
 
+// ====== 云同步层（数据自动备份到 wb.reeve10001.top/wbsync）======
+const SYNC = {
+  key: 'wb_sync_2026',
+  url: 'https://wb.reeve10001.top/wbsync/api/',
+  dirty: {},      // 待推送的键
+  timer: null,
+  mark(key, val) {               // DB.set 后调用：记脏+防抖推送
+    this.dirty[key] = val;
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.push(), 2000);
+  },
+  async push() {
+    const d = this.dirty; this.dirty = {};
+    if (!Object.keys(d).length) return;
+    try {
+      await fetch(this.url + 'sync?k=' + this.key, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) });
+    } catch (e) { for (const k in d) this.dirty[k] = d[k]; }  // 失败回滚待重试
+  },
+  async pull() {                 // 启动时拉云端全量，合并进本地
+    try {
+      const r = await fetch(this.url + 'all?k=' + this.key);
+      const j = await r.json();
+      if (!j.ok || !j.data) return false;
+      const local = {};
+      for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith('wb_')) local[k.slice(3)] = localStorage.getItem(k); }
+      let changed = 0;
+      for (const k in j.data) {
+        const cv = j.data[k], lraw = local[k];
+        let lv; try { lv = lraw !== undefined ? JSON.parse(lraw) : undefined; } catch { lv = undefined; }
+        const s_cv = JSON.stringify(cv), s_lv = JSON.stringify(lv);
+        if (s_cv === s_lv) continue;
+        // workbench_config（自定义板块/总页数）：customGroups 按内容并集，数字取大，其余本地优先
+        if (k === 'workbench_config') {
+          let mergedCfg;
+          try { mergedCfg = lraw !== undefined ? JSON.parse(lraw) : {}; } catch { mergedCfg = {}; }
+          for (const kk in cv) {
+            const a = cv[kk], b2 = mergedCfg[kk];
+            if (kk === 'customGroups' && Array.isArray(a)) {
+              const out = Array.isArray(b2) ? b2.slice() : [];
+              a.forEach(g => {
+                const hit = out.find(x => x.label === g.label);
+                if (!hit) { out.push(g); return; }
+                (g.items || []).forEach(it => { if (!hit.items.some(x => x.id === it.id)) hit.items.push(it); });
+              });
+              mergedCfg[kk] = out;
+            }
+            else if (typeof a === 'number' && typeof b2 === 'number') mergedCfg[kk] = Math.max(a, b2);
+            else if (b2 === undefined) mergedCfg[kk] = a;
+          }
+          if (JSON.stringify(mergedCfg) !== s_lv) { localStorage.setItem('workbench_config', JSON.stringify(mergedCfg)); changed++; }
+          continue;
+        }
+        // 冲突策略：数字取大、数组按内容去重并集、对象按键合并、其他云端优先
+        let merged;
+        if (typeof cv === 'number' && typeof lv === 'number') merged = Math.max(cv, lv);
+        else if (Array.isArray(cv) && Array.isArray(lv)) {
+          merged = lv.slice();
+          cv.forEach(x => { if (!merged.some(y => JSON.stringify(y) === JSON.stringify(x))) merged.push(x); });
+        }
+        else if (cv && lv && typeof cv === 'object' && typeof lv === 'object' && !Array.isArray(cv) && !Array.isArray(lv)) {
+          merged = { ...lv }; for (const k2 in cv) merged[k2] = (typeof cv[k2] === 'number' && typeof lv[k2] === 'number') ? Math.max(cv[k2], lv[k2]) : cv[k2];
+        }
+        else merged = cv;
+        localStorage.setItem('wb_' + k, JSON.stringify(merged));
+        changed++;
+      }
+      // timer_state 清理：云端若存了损坏值（start 超范围）直接重置
+      const ts = localStorage.getItem('wb_timer_state');
+      if (ts) { try { const t = JSON.parse(ts); const lo = 1577836800000, hi = Date.now() + 60000;
+        if (t.start && (t.start < lo || t.start > hi)) { localStorage.setItem('wb_timer_state', JSON.stringify({ running: false, start: 0 })); } } catch {} }
+      return changed;
+    } catch (e) { return false; }
+  }
+};
+
+// 包一层 DB.set：写本地的同时标记同步
+const _rawSet = DB.set.bind(DB);
+DB.set = function (key, val) { _rawSet(key, val); SYNC.mark(key, val); };
+
 // ====== Toast ======
 let toastTimer;
 function toast(msg, type='') {
@@ -1311,6 +1390,7 @@ function addVocab(n) {
 }
 function saveCfg() {
   try { localStorage.setItem('workbench_config', JSON.stringify(CFG)); } catch (e) {}
+  SYNC.mark('workbench_config', CFG);
 }
 function promptVocabTotal() {
   const cur = CFG.vocabTotal;
@@ -1904,10 +1984,24 @@ updateStudyTotal();
 restoreTimer();
 renderTasks();
 renderStats();
-loadReview();
 renderMemos();
 drawWheel();
 checkTimeHint();
+
+// ====== 云同步：加载时拉云端合并，有更新则刷新界面 ======
+(async () => {
+  const n = await SYNC.pull();
+  if (n) {
+    // 云端合并进 localStorage 后，把最新配置刷进运行中的 CFG 再重渲染
+    try {
+      const fresh = JSON.parse(localStorage.getItem('workbench_config') || '{}');
+      Object.keys(CFG).forEach(k => delete CFG[k]);
+      Object.assign(CFG, fresh);
+    } catch (e) {}
+    try { renderTasks(); renderStats(); renderMemos(); updateCheckinUI(); updateTimerDisplay(); updateTimerCount(); updateStudyTotal(); drawWheel(); } catch (e) {}
+    toast('☁️ 已从云端同步 ' + n + ' 条数据');
+  }
+})();
 </script>
 </body>
 </html>
