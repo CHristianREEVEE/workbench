@@ -1060,6 +1060,7 @@ function stopTimer() {
   if (statTab === 'day') renderStats(); // 结束计时后底部统计立刻落账
 }
 function updateTimerDisplay() {
+  if (!timerRunning) return; // 未计时时别动显示，防止把 Date.now() 当时长刷出天文数字
   const elapsed = Math.floor((Date.now() - timerStart) / 1000);
   document.getElementById('timer-display').textContent = fmtTime(elapsed);
   if (elapsed !== lastShownSec) { lastShownSec = elapsed; updateTimerCount(); if (statTab === 'day') renderStats(); } // 今日统计实时同步
