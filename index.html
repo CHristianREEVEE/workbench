@@ -76,16 +76,22 @@
     position: absolute;
     top: 10px; right: 12px;
     width: 34px; height: 34px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    font-size: 14px;
+    background: transparent;
+    border: none;
+    padding: 0;
     cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    transition: color .15s ease;
   }
-  .motto-edit-btn:active { color: var(--text); }
+  .motto-edit-btn .orb {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff3d6 0%, #f0c878 35%, #c8963e 70%, #8a6a24 100%);
+    animation: breathe 3.2s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { box-shadow: 0 0 4px 1px rgba(240, 200, 120, .20); opacity: .7; transform: scale(1); }
+    50% { box-shadow: 0 0 12px 5px rgba(240, 200, 120, .55); opacity: 1; transform: scale(1.12); }
+  }
+  .motto-edit-btn:active .orb { transform: scale(.88); transition: transform .1s; }
   header {
     background: linear-gradient(180deg, #2a2438 0%, #1a1721 100%);
     padding: 40px 20px 20px;
@@ -1806,7 +1812,7 @@ function renderMotto() {
   const lines = getMottoLines();
   if (!lines.length) lines.push('点击这里写下你的格言');
   card.innerHTML = lines.map((l, i) => i === 0 ? `<div class="motto-main">${esc(l)}</div>` : `<div class="motto-sub">${esc(l)}</div>`).join('')
-    + '<button class="motto-edit-btn" onclick="event.stopPropagation();openMottoModal()" title="修改格言">✏️</button>';
+    + '<button class="motto-edit-btn" onclick="event.stopPropagation();openMottoModal()" title="修改格言"><span class="orb"></span></button>';
 }
 function openMottoModal() {
   document.getElementById('motto-input').value = getMottoLines().join('\n');
