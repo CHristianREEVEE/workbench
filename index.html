@@ -557,6 +557,11 @@
   .hmc { width: 13px; height: 13px; border-radius: 3px; cursor: pointer; flex-shrink: 0; }
   .hmwd { width: 12px; height: 13px; font-size: 9px; color: var(--text-dim); display: flex; align-items: center; justify-content: center; }
   .hmml { font-size: 9px; color: var(--text-dim); height: 12px; line-height: 12px; white-space: nowrap; overflow: visible; }
+  .subj-chip { font-size: 12px; color: var(--text-mid); background: var(--bg-2); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; cursor: pointer; flex-shrink: 0; }
+  .subj-chip:active { opacity: .7; }
+  .subj-panel { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 0; }
+  .subj-btn { background: var(--bg-2); border: 1px solid var(--border); border-radius: 999px; color: var(--text-mid); font-size: 12px; padding: 6px 16px; cursor: pointer; }
+  .subj-btn.sel { border-color: var(--accent); background: var(--accent-glow); color: var(--text); font-weight: 600; }
   .tab-row { display: flex; gap: 4px; margin-bottom: 16px; }
   .tab-row .tab {
     flex: 1;
@@ -727,7 +732,17 @@
   <!-- 模块2：番茄计时器 -->
   <section>
     <div class="card">
-      <div class="card-title" data-cfg-title="timer">⏱ 番茄计时器</div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="card-title" data-cfg-title="timer">⏱ 番茄计时器</div>
+        <div class="subj-chip" id="subj-chip" onclick="toggleSubjPanel()">🏷 未分类 ▾</div>
+      </div>
+      <div id="subj-panel" class="subj-panel" style="display:none">
+        <button class="subj-btn" data-s="" onclick="setSubject('')">未分类</button>
+        <button class="subj-btn" data-s="英语" onclick="setSubject('英语')">英语</button>
+        <button class="subj-btn" data-s="数学" onclick="setSubject('数学')">数学</button>
+        <button class="subj-btn" data-s="逻辑" onclick="setSubject('逻辑')">逻辑</button>
+        <button class="subj-btn" data-s="写作" onclick="setSubject('写作')">写作</button>
+      </div>
       <div class="timer-display" id="timer-display">00:00:00</div>
       <div class="timer-btns">
         <button class="btn btn-green" id="timer-start" onclick="startTimer()" data-cfg-btn="timer_start">▶ 开始学习</button>
@@ -1189,6 +1204,25 @@ function saveTodaySegments(segs) {
   data[today()] = segs;
   DB.set('timer_segments', data);
 }
+// ====== 科目标签（每段计时挂科目，分科统计）======
+let timerSubject = DB.get('timer_subject', '') || '';
+function toggleSubjPanel() {
+  const p = document.getElementById('subj-panel');
+  p.style.display = p.style.display === 'none' ? 'flex' : 'none';
+}
+function setSubject(s) {
+  timerSubject = s;
+  DB.set('timer_subject', s);
+  updateSubjUI();
+  toast(s ? '🏷 已切换到「' + s + '」，本段将记到它名下' : '🏷 已设为未分类', 'success');
+}
+function updateSubjUI() {
+  const chip = document.getElementById('subj-chip');
+  if (!chip) return;
+  chip.textContent = (timerSubject ? '🏷 ' + timerSubject : '🏷 未分类') + ' ▾';
+  document.querySelectorAll('.subj-btn').forEach(b => b.classList.toggle('sel', b.getAttribute('data-s') === timerSubject));
+}
+
 function startTimer() {
   if (timerRunning) return;
   timerRunning = true;
@@ -1209,9 +1243,9 @@ function stopTimer() {
   const elapsed = Math.floor((Date.now() - timerStart) / 1000);
   if (elapsed >= 60) {
     const segs = getTodaySegments();
-    segs.push({ start: timerStart, end: Date.now(), duration: elapsed });
+    segs.push({ start: timerStart, end: Date.now(), duration: elapsed, subject: timerSubject });
     saveTodaySegments(segs);
-    toast(`本次学习 ${fmtMin(elapsed)}，已保存✅`, 'success');
+    toast(`本次学习 ${fmtMin(elapsed)}${timerSubject ? '（' + timerSubject + '）' : ''}，已保存✅`, 'success');
   } else {
     toast(`本次仅 ${elapsed} 秒，未满1分钟不计入记录`, 'warn');
   }
@@ -1254,7 +1288,7 @@ function adjustTimer(min) {
         last.start = last.end - last.duration * 1000;
       } else {
         const end = Date.now();
-        segs.push({ start: end - delta * 1000, end: end, duration: delta, manual: true });
+        segs.push({ start: end - delta * 1000, end: end, duration: delta, manual: true, subject: timerSubject });
       }
       saveTodaySegments(segs);
       document.getElementById('timer-display').textContent = '00:00:00';
@@ -2438,16 +2472,24 @@ function renderStats() {
     html += `</div>`;
     html += `<div class="stat-row"><span>${L.daily_total||'当日总时长'}</span><b>${fmtDual(todayStats.total + liveSec)}</b></div>`;
     html += `<div class="stat-row"><span>${L.seg_count||'学习段数'}</span><b>${segs.length + (liveSec>0?1:0)} 段</b></div>`;
-    html += `<div class="section-label" style="margin-top:12px">${L.seg_detail||'分段明细'}</div>`;
+    // 各科目分科汇总（segments 带 subject 的自动归科；进行中的时间也归当前选中科）
+    const bySubj = {};
+    segs.forEach(s => { const k = s.subject || '未分类'; bySubj[k] = (bySubj[k] || 0) + s.duration; });
+    if (liveSec > 0) { const k = timerSubject || '未分类'; bySubj[k] = (bySubj[k] || 0) + liveSec; }
+    const subjEntries = Object.entries(bySubj).filter(e => e[1] > 0);
+    if (subjEntries.length > 1 || (subjEntries.length === 1 && subjEntries[0][0] !== '未分类')) {
+      html += `<div class="stat-row" style="border-bottom:1px solid var(--border);padding-bottom:8px"><span>各科目</span><b>${subjEntries.map(e => e[0] + ' ' + fmtMin(e[1])).join(' · ')}</b></div>`;
+    }
     if (segs.length) {
+      html += `<div class="section-label" style="margin-top:12px">${L.seg_detail || '分段明细'}</div>`;
       html += segs.map(s => {
         const st = new Date(s.start), en = new Date(s.end);
-        return `<div class="stat-row"><span>${s.manual ? '加时' : st.toTimeString().slice(0,5)+'-'+en.toTimeString().slice(0,5)}</span><b>${fmtMin(s.duration)}</b></div>`;
+        return `<div class="stat-row"><span>${s.subject ? '[' + s.subject + '] ' : ''}${s.manual ? '加时' : st.toTimeString().slice(0,5)+'-'+en.toTimeString().slice(0,5)}</span><b>${fmtMin(s.duration)}</b></div>`;
       }).join('');
     }
     if (liveSec > 0) {
       const stT = new Date(timerStart).toTimeString().slice(0,5);
-      html += `<div class="stat-row"><span>${stT}-当前</span><b style="color:var(--orange)">⏱ ${fmtMin(liveSec)} 进行中</b></div>`;
+      html += `<div class="stat-row"><span>${timerSubject ? '[' + timerSubject + '] ' : ''}${stT}-当前</span><b style="color:var(--orange)">⏱ ${fmtMin(liveSec)} 进行中</b></div>`;
     }
     if (!segs.length && !liveSec) {
       html += `<div class="empty">${statsDayOffset === 0 ? (L.no_data||'今日暂无记录') : '当日暂无记录'}</div>`;
@@ -2581,6 +2623,7 @@ updateCheckinUI();
 updateTimerCount();
 updateStudyTotal();
 restoreTimer();
+updateSubjUI();
 renderTasks();
 renderStats();
 renderHeat();
