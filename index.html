@@ -73,13 +73,15 @@
   .wp-veil-row input[type=range] { flex: 1; accent-color: var(--accent); }
   .wp-veil-row .wp-veil-val { font-size: 13px; color: var(--text-mid); min-width: 38px; text-align: right; }
   .motto-edit-btn {
-    position: absolute;
-    top: 10px; right: 12px;
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    left: 12px;
     width: 34px; height: 34px;
     background: transparent;
     border: none;
     padding: 0;
     cursor: pointer;
+    z-index: 50;
     display: flex; align-items: center; justify-content: center;
   }
   .motto-edit-btn .orb {
@@ -692,6 +694,8 @@
 </style>
 </head>
 <body>
+<!-- 格言呼吸灯（左上角悬浮，点击修改格言） -->
+<button class="motto-edit-btn" onclick="openMottoModal()" title="修改格言" aria-label="修改格言"><span class="orb"></span></button>
 <!-- 壁纸层（用户自选，本地存储不上云） -->
 <div class="wallpaper-layer" id="wallpaper-layer"></div>
 
@@ -1811,8 +1815,7 @@ function renderMotto() {
   if (!card) return;
   const lines = getMottoLines();
   if (!lines.length) lines.push('点击这里写下你的格言');
-  card.innerHTML = lines.map((l, i) => i === 0 ? `<div class="motto-main">${esc(l)}</div>` : `<div class="motto-sub">${esc(l)}</div>`).join('')
-    + '<button class="motto-edit-btn" onclick="event.stopPropagation();openMottoModal()" title="修改格言"><span class="orb"></span></button>';
+  card.innerHTML = lines.map((l, i) => i === 0 ? `<div class="motto-main">${esc(l)}</div>` : `<div class="motto-sub">${esc(l)}</div>`).join('');
 }
 function openMottoModal() {
   document.getElementById('motto-input').value = getMottoLines().join('\n');
