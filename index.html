@@ -2352,7 +2352,7 @@ function renderHeat() {
       monthSec += sec;
       const lv = heatLevel(sec);
       const label = ds.slice(5).replace('-', '/') + ' ' + (sec ? fmtMin(sec) : '无记录');
-      const bg = lv === 0 ? 'background:transparent' : 'background:' + HEAT_COLORS[lv];
+      const bg = 'background:' + HEAT_COLORS[lv];
       cellsHtml += '<div class="hmc" style="width:' + size + 'px;height:' + size + 'px;' + bg + '" title="' + label + '" onclick="heatJump(\'' + ds + '\')"></div>';
     }
     html = '<div style="display:grid;grid-template-columns:repeat(7,' + size + 'px);gap:' + gap + 'px;justify-content:center">' + cellsHtml + '</div>';
