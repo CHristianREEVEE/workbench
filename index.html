@@ -2470,6 +2470,13 @@ checkTimeHint();
   }
   SYNC.pushAll(); // 拉完合并后本地⊇云端，全量推上去让历史数据也落地
 })();
+
+// ====== PWA：Service Worker 注册（页面骨架缓存，秒开+离线；数据同步不受影响）======
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
