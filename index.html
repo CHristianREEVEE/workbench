@@ -853,6 +853,17 @@ const SYNC = {
       await fetch(this.url + 'sync?k=' + this.key, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) });
     } catch (e) { for (const k in d) this.dirty[k] = d[k]; }  // 失败回滚待重试
   },
+  async pushAll() {   // 全量对账：把本地所有数据整体推上云端（拉取合并后调用，两边收敛一致）
+    const payload = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k.startsWith('wb_')) { try { payload[k.slice(3)] = JSON.parse(localStorage.getItem(k)); } catch (e) {} }
+    }
+    const cfgRaw = localStorage.getItem('workbench_config');
+    if (cfgRaw) { try { payload.workbench_config = JSON.parse(cfgRaw); } catch (e) {} }
+    if (!Object.keys(payload).length) return;
+    try { await fetch(this.url + 'sync?k=' + this.key, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); } catch (e) {}
+  },
   async pull() {                 // 启动时拉云端全量，合并进本地
     try {
       const r = await fetch(this.url + 'all?k=' + this.key);
@@ -1989,7 +2000,7 @@ renderMemos();
 drawWheel();
 checkTimeHint();
 
-// ====== 云同步：加载时拉云端合并，有更新则刷新界面 ======
+// ====== 云同步：加载时拉云端合并，有更新则刷新界面；再全量对账推送（历史数据兜底上云）======
 (async () => {
   const n = await SYNC.pull();
   if (n) {
@@ -1999,9 +2010,10 @@ checkTimeHint();
       Object.keys(CFG).forEach(k => delete CFG[k]);
       Object.assign(CFG, fresh);
     } catch (e) {}
-    try { renderTasks(); renderStats(); renderMemos(); updateCheckinUI(); updateTimerDisplay(); updateTimerCount(); updateStudyTotal(); drawWheel(); } catch (e) {}
+    try { renderTasks(); renderStats(); renderMemos(); updateCheckinUI(); updateTimerCount(); updateStudyTotal(); drawWheel(); } catch (e) {}
     toast('☁️ 已从云端同步 ' + n + ' 条数据');
   }
+  SYNC.pushAll(); // 拉完合并后本地⊇云端，全量推上去让历史数据也落地
 })();
 </script>
 </body>
