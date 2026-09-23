@@ -2630,6 +2630,25 @@ renderMemos();
 drawWheel();
 checkTimeHint();
 
+// ====== 划回前台自动追新版（PWA 解冻探测：etag 变了就静默重载）======
+let __probeEtag = null;
+function probeVersion() {
+  fetch('./?probe=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
+    .then(r => {
+      const et = r.headers.get('etag');
+      if (!et) return;
+      if (__probeEtag === null) { __probeEtag = et; return; } // 首次只记基线
+      if (et !== __probeEtag) {
+        const el = document.activeElement;
+        const typing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') && el.value;
+        if (!typing) { __probeEtag = et; location.reload(); }
+      }
+    }).catch(() => {});
+}
+probeVersion();
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') probeVersion(); });
+window.addEventListener('pageshow', e => { if (e.persisted) probeVersion(); });
+
 // ====== 云同步：加载时拉云端合并，有更新则刷新界面；再全量对账推送（历史数据兜底上云）======
 (async () => {
   const n = await SYNC.pull();
