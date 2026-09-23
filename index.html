@@ -579,7 +579,7 @@
   .stat-bar .bar-bg { flex:1; height: 16px; background: var(--card-solid); border-radius: 8px; overflow: hidden; }
   .stat-bar .bar-fill { height: 100%; background: var(--accent); border-radius: 8px; transition: width .5s; }
   .stat-bar .bar-label { width: 50px; color: var(--text-dim); }
-  .stat-bar .bar-value { width: 50px; text-align: right; color: var(--text); }
+  .stat-bar .bar-value { width: 64px; text-align: right; color: var(--text); font-size: 10.5px; }
   /* ===== Toast ===== */
   .toast {
     position: fixed;
@@ -710,7 +710,7 @@
         <div class="big-clock" id="big-clock">00:00:00</div>
         <button class="checkin-btn" id="checkin-btn" onclick="toggleCheckin()" data-cfg-btn="checkin">今日打卡</button>
         <div class="checkin-count">累计打卡 <b id="checkin-total">0</b> 天</div>
-        <div class="checkin-count">总计学习时长 <b id="study-total">0</b> 小时</div>
+        <div class="checkin-count">总计学习时长 <b id="study-total">0</b></div>
         <div class="streak-row">
           <div class="streak-item">
             <div class="label">当前连续</div>
@@ -1111,9 +1111,10 @@ function fmtTime(s) {
   const h = Math.floor(s/3600), m = Math.floor(s%3600/60), sec = s%60;
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
-function fmtMin(s) { return Math.floor(s/60) + '分钟'; }
-function fmtHour(s) { return (s/3600).toFixed(1) + '小时'; }
-function fmtDual(s) { const h=(s/3600).toFixed(1),m=Math.floor(s/60); return h+'小时 · '+m+'分钟'; }
+function fmtMin(s) { const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return h > 0 ? h + '小时' + (m > 0 ? m + '分钟' : '') : m + '分钟'; }
+function fmtHour(s) { return fmtMin(s); }
+function fmtDual(s) { return fmtMin(s); }
+function fmtBar(s) { const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return h > 0 ? h + '小时' + m + '分' : m + '分'; }
 
 // ====== Module 1: Check-in ======
 function getCheckins() { return DB.get('checkins', []); }
@@ -1260,7 +1261,7 @@ function adjustTimer(min) {
       lastShownSec = -1;
       updateTimerCount();  // "今日 X 段 · 共 X" 立即刷新
       renderStats();       // 底部日/周/月统计立即刷新
-      toast(`已补记 ${min >= 60 ? (min / 60) + ' 小时' : min + ' 分钟'}，今日统计已更新`, 'success');
+      toast(`已补记 ${fmtMin(min * 60)}，今日统计已更新`, 'success');
     } else {
       if (!segs.length) { toast('今日还没有记录可减', 'warn'); return; }
       const last = segs[segs.length - 1];
@@ -1305,10 +1306,10 @@ function updateStudyTotal() {
     else (data[d] || []).forEach(seg => { totalSec += seg.duration; });
   });
   const el = document.getElementById('study-total');
-  if (el) el.textContent = (totalSec/3600).toFixed(1);
+  if (el) el.textContent = fmtMin(totalSec);
 }
 // 历史最长纪录：全期单日学习时长之最；今天刷新纪录时高亮
-function fmtRec(s) { return s >= 3600 ? (s/3600).toFixed(1) + '小时' : Math.round(s/60) + '分钟'; }
+function fmtRec(s) { return fmtMin(s); }
 function updateRecordBadge() {
   const el = document.getElementById('timer-record');
   if (!el) return;
@@ -2481,8 +2482,8 @@ function renderStats() {
     const maxVal = Math.max(...stats.map(s => s.total), 1);
     html += stats.map((s, i) => {
       const pct = (s.total / maxVal * 100).toFixed(0);
-      const h = (s.total/3600).toFixed(1), mins = Math.floor(s.total / 60);
-      return `<div class="stat-bar"><span class="bar-label">周${days[i]}</span><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div><span class="bar-value">${h}h · ${mins}${minSuffix}</span></div>`;
+      const barTxt = fmtBar(s.total);
+      return `<div class="stat-bar"><span class="bar-label">周${days[i]}</span><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div><span class="bar-value">${barTxt}</span></div>`;
     }).join('');
     html += '</div>';
     content.innerHTML = html;
@@ -2517,9 +2518,9 @@ function renderStats() {
       });
       const val = wStats.reduce((s, x) => s + x.total, 0);
       const pct = (val / maxVal * 100).toFixed(0);
-      const h = (val/3600).toFixed(1), mins = Math.floor(val / 60);
+      const barTxt = fmtBar(val);
       const label = `第${w+1}周(${start}-${end})`;
-      html += `<div class="stat-bar"><span class="bar-label">${label}</span><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div><span class="bar-value">${h}h · ${mins}${minSuffix}</span></div>`;
+      html += `<div class="stat-bar"><span class="bar-label">${label}</span><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div><span class="bar-value">${barTxt}</span></div>`;
     }
     html += '</div>';
     content.innerHTML = html;
