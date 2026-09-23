@@ -73,15 +73,14 @@
   .wp-veil-row input[type=range] { flex: 1; accent-color: var(--accent); }
   .wp-veil-row .wp-veil-val { font-size: 13px; color: var(--text-mid); min-width: 38px; text-align: right; }
   .motto-edit-btn {
-    position: fixed;
-    top: calc(env(safe-area-inset-top, 0px) + 10px);
-    left: 12px;
+    position: absolute;
+    bottom: 12px;
+    left: 14px;
     width: 34px; height: 34px;
     background: transparent;
     border: none;
     padding: 0;
     cursor: pointer;
-    z-index: 50;
     display: flex; align-items: center; justify-content: center;
   }
   .motto-edit-btn .orb {
@@ -694,14 +693,13 @@
 </style>
 </head>
 <body>
-<!-- 格言呼吸灯（左上角悬浮，点击修改格言） -->
-<button class="motto-edit-btn" onclick="openMottoModal()" title="修改格言" aria-label="修改格言"><span class="orb"></span></button>
 <!-- 壁纸层（用户自选，本地存储不上云） -->
 <div class="wallpaper-layer" id="wallpaper-layer"></div>
 
 <header>
   <div class="main-title">南浊 · 个人工作台</div>
   <button class="wallpaper-btn" onclick="openWallpaperModal()" title="壁纸设置">👕</button>
+  <button class="motto-edit-btn" onclick="openMottoModal()" title="修改格言" aria-label="修改格言"><span class="orb"></span></button>
 </header>
 
 <div class="container">
