@@ -285,8 +285,29 @@ const defaultConfig={
   vocabTotal:427,
   configVersion:4
 };
+function pullCloudCfg(){
+  // 拉云端 workbench_config 覆盖本地（保证 admin 基线=云端最新，避免以旧改旧）
+  try{
+    fetch('https://wb.reeve10001.top/wbsync/api/all?k=wb_sync_2026').then(function(r){return r.json()}).then(function(j){
+      if(j&&j.ok&&j.data&&j.data.workbench_config){
+        var cv=j.data.workbench_config,lv=null;
+        try{lv=JSON.parse(localStorage.getItem('workbench_config'))}catch(e){}
+        if(JSON.stringify(cv)!==JSON.stringify(lv)){
+          localStorage.setItem('workbench_config',JSON.stringify(cv));
+          reloadConfig();renderCfgTabs();renderCfgCardTitles();renderCfgButtons();renderCfgStatLabels();renderCfgStatTabs();renderCfgStatRowLabels();renderCfgWeekTimes();renderCfgTaskGroups();document.getElementById('cfg-vocabTotal').value=CFG.vocabTotal||427;document.getElementById('cfg-mathTotal').value=CFG.mathTotal||76;
+        }
+      }
+    }).catch(function(){});
+  }catch(e){}
+}
 function loadConfig(){try{const v=localStorage.getItem('workbench_config');if(!v)return JSON.parse(JSON.stringify(defaultConfig));const saved=JSON.parse(v);if(!saved.configVersion||saved.configVersion<defaultConfig.configVersion){saved.tabs=defaultConfig.tabs;saved.cardTitles=defaultConfig.cardTitles;saved.buttons=defaultConfig.buttons;saved.taskGroups=defaultConfig.taskGroups;saved.mathTotal=defaultConfig.mathTotal;saved.vocabTotal=defaultConfig.vocabTotal;saved.configVersion=defaultConfig.configVersion;localStorage.setItem('workbench_config',JSON.stringify(saved));return saved}return saved}catch(e){return JSON.parse(JSON.stringify(defaultConfig))}}
-function saveConfigRaw(cfg){localStorage.setItem('workbench_config',JSON.stringify(cfg))}
+function saveConfigRaw(cfg){
+  localStorage.setItem('workbench_config',JSON.stringify(cfg));
+  // 后台改的配置也要推上云端（否则前台 pull 时被云端旧值覆盖，"后台改了前台不变"）
+  try{
+    fetch('https://wb.reeve10001.top/wbsync/api/sync?k=wb_sync_2026',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({workbench_config:cfg})}).catch(function(){});
+  }catch(e){}
+}
 let CFG=loadConfig();
 let MATH_TOTAL=CFG.mathTotal;
 let VOCAB_TOTAL=CFG.vocabTotal;
@@ -736,7 +757,7 @@ function clearAllData(){
 }
 document.getElementById('timer-date').value=today();
 
-renderOverview();
+renderOverview();pullCloudCfg();
 </script>
 </body>
 </html>
