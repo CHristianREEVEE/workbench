@@ -1079,7 +1079,7 @@ const SYNC = {
               });
               mergedCfg[kk] = out;
             }
-            else if (typeof a === 'number' && typeof b2 === 'number') mergedCfg[kk] = Math.max(a, b2);
+            else if (typeof a === 'number' && typeof b2 === 'number') mergedCfg[kk] = (kk === 'configVersion') ? Math.max(a, b2) : a; // 版本号取大；设置型数字（mathTotal/vocabTotal）云端优先——取大会让"改小"永不生效
             else if (b2 === undefined) mergedCfg[kk] = a;
           }
           if (JSON.stringify(mergedCfg) !== s_lv) { localStorage.setItem('workbench_config', JSON.stringify(mergedCfg)); changed++; }
@@ -1251,7 +1251,10 @@ function updateSubjUI() {
 }
 
 function startTimer() {
-  if (timerRunning) return;
+  if (timerRunning) {
+    if (timerPaused) togglePauseTimer(); // 暂停中点「开始学习」=取消暂停继续计时
+    return;
+  }
   timerRunning = true;
   timerPaused = false; pausedAt = 0;
   timerStart = Date.now() - timerAdjustSec * 1000; // 带上补时继续
@@ -1295,6 +1298,9 @@ function updatePauseBtn() {
   btn.textContent = timerPaused ? '▶' : '⏸';
   btn.title = btn.ariaLabel = timerPaused ? '继续计时' : '暂停计时';
   btn.classList.toggle('paused', timerPaused);
+  // 开始键：闲置可点；计时中禁用；暂停中可点（点了=取消暂停）
+  const sb = document.getElementById('timer-start');
+  if (sb) sb.disabled = timerRunning && !timerPaused;
 }
 function stopTimer() {
   if (!timerRunning) return;
@@ -1669,11 +1675,11 @@ function saveCfg() {
 }
 function promptVocabTotal() {
   const cur = CFG.vocabTotal;
-  const n = parseInt(prompt(`新增页数（当前总页数 ${cur}，输负数可回退）：`));
-  if (!n || isNaN(n)) return;
-  CFG.vocabTotal = Math.max(1, cur + n);
+  const n = parseInt(prompt(`设置总页数（当前 ${cur} 页，输入新总数直接替换）：`));
+  if (isNaN(n) || n < 1) return;
+  CFG.vocabTotal = n; // 直接替换，不再累加（旧累加语义把"改小"变成"越加越多"）
   saveCfg();
-  toast(`总页数：${cur} → ${CFG.vocabTotal} 页 ✅`, 'success');
+  toast(`总页数：${cur} → ${n} 页 ✅`, 'success');
   renderTasks();
 }
 function toggleTask(i) {
