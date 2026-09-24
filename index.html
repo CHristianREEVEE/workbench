@@ -190,6 +190,14 @@
   .btn-green { background: var(--green); }
   .btn-orange { background: var(--orange); }
   .btn-red { background: var(--red); }
+  /* 计时暂停键：正方形，夹在开始/结束中间 */
+  .btn-sq {
+    flex: 0 0 auto; width: 46px; height: 46px; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; background: var(--bg-2); color: var(--text);
+  }
+  .btn-sq:disabled { opacity: 0.3; }
+  .btn-sq.paused { background: var(--orange); color: #fff; }
   .btn-sm { padding: 6px 14px; font-size: 13px; min-height: 36px; border-radius: 8px; }
   /* ===== Module 1: Check-in ===== */
   .checkin-area { text-align: center; padding: 10px 0; }
@@ -755,6 +763,7 @@
       <div class="timer-display" id="timer-display">00:00:00</div>
       <div class="timer-btns">
         <button class="btn btn-green" id="timer-start" onclick="startTimer()" data-cfg-btn="timer_start">▶ 开始学习</button>
+        <button class="btn btn-sq" id="timer-pause" onclick="togglePauseTimer()" disabled title="暂停计时" aria-label="暂停计时">⏸</button>
         <button class="btn btn-red" id="timer-stop" onclick="stopTimer()" disabled data-cfg-btn="timer_stop">■ 结束计时</button>
       </div>
       <div class="timer-adjust">
@@ -1203,6 +1212,15 @@ function updateCheckinUI() {
 // ====== Module 2: Timer ======
 let timerRunning = false, timerStart = 0, timerInterval = null, todaySegments = [];
 let timerAdjustSec = 0, lastShownSec = -1;
+let timerPaused = false, pausedAt = 0; // 暂停中 + 暂停时刻（暂停期间不计时）
+// 进行中的有效时长（秒）：暂停期间不增长，所有"进行中"统计统一走这里
+function liveElapsedSec() {
+  if (!timerRunning) return 0;
+  const now = timerPaused ? pausedAt : Date.now();
+  return Math.max(0, Math.floor((now - timerStart) / 1000));
+}
+// 暂停感知的"当前时刻"（补时等校准用）
+function refNow() { return timerPaused ? pausedAt : Date.now(); }
 
 function getTodaySegments() {
   const data = DB.get('timer_segments', {});
@@ -1235,24 +1253,60 @@ function updateSubjUI() {
 function startTimer() {
   if (timerRunning) return;
   timerRunning = true;
+  timerPaused = false; pausedAt = 0;
   timerStart = Date.now() - timerAdjustSec * 1000; // 带上补时继续
   timerAdjustSec = 0;
-  DB.set('timer_state', { running: true, start: timerStart });
+  DB.set('timer_state', { running: true, start: timerStart, paused: false });
   document.getElementById('timer-start').disabled = true;
   document.getElementById('timer-stop').disabled = false;
+  updatePauseBtn();
   document.getElementById('timer-display').classList.add('running');
   updateAdjustUI();
   timerInterval = setInterval(updateTimerDisplay, 100);
 }
+// 暂停/继续（正方形键）：暂停期间不计时，续算时把起点平移过来
+function togglePauseTimer() {
+  if (!timerRunning) return;
+  const btn = document.getElementById('timer-pause');
+  if (!timerPaused) {
+    timerPaused = true;
+    pausedAt = Date.now();
+    clearInterval(timerInterval);
+    DB.set('timer_state', { running: true, start: timerStart, paused: true, pausedAt });
+    document.getElementById('timer-display').classList.remove('running');
+    toast('⏸ 已暂停计时，点 ▶ 继续', 'info');
+  } else {
+    timerStart += Date.now() - pausedAt; // 暂停时长剔除：起点平移
+    timerPaused = false; pausedAt = 0;
+    DB.set('timer_state', { running: true, start: timerStart, paused: false });
+    document.getElementById('timer-display').classList.add('running');
+    timerInterval = setInterval(updateTimerDisplay, 100);
+    toast('▶ 继续计时', 'success');
+  }
+  updateTimerDisplay();
+  updateTimerCount();
+  updatePauseBtn();
+}
+// 正方形键的态：闲置=禁用；计时中=⏸；暂停中=▶（橙色高亮）
+function updatePauseBtn() {
+  const btn = document.getElementById('timer-pause');
+  if (!btn) return;
+  btn.disabled = !timerRunning;
+  btn.textContent = timerPaused ? '▶' : '⏸';
+  btn.title = btn.ariaLabel = timerPaused ? '继续计时' : '暂停计时';
+  btn.classList.toggle('paused', timerPaused);
+}
 function stopTimer() {
   if (!timerRunning) return;
+  const elapsed = liveElapsedSec(); // 先取有效时长再复位（暂停中结束时也不能丢）
+  const endMs = refNow();
   timerRunning = false;
+  timerPaused = false; pausedAt = 0;
   clearInterval(timerInterval);
   DB.set('timer_state', { running: false, start: 0 });
-  const elapsed = Math.floor((Date.now() - timerStart) / 1000);
   if (elapsed >= 60) {
     const segs = getTodaySegments();
-    segs.push({ start: timerStart, end: Date.now(), duration: elapsed, subject: timerSubject });
+    segs.push({ start: timerStart, end: endMs, duration: elapsed, subject: timerSubject });
     saveTodaySegments(segs);
     toast(`本次学习 ${fmtMin(elapsed)}${timerSubject ? '（' + timerSubject + '）' : ''}，已保存✅`, 'success');
   } else {
@@ -1260,6 +1314,7 @@ function stopTimer() {
   }
   document.getElementById('timer-start').disabled = false;
   document.getElementById('timer-stop').disabled = true;
+  updatePauseBtn();
   document.getElementById('timer-display').classList.remove('running');
   document.getElementById('timer-display').textContent = '00:00:00';
   lastShownSec = -1;
@@ -1270,8 +1325,8 @@ function stopTimer() {
   if (statTab === 'day') renderStats(); // 结束计时后底部统计立刻落账
 }
 function updateTimerDisplay() {
-  if (!timerRunning) return; // 未计时时别动显示，防止把 Date.now() 当时长刷出天文数字
-  const elapsed = Math.floor((Date.now() - timerStart) / 1000);
+  if (!timerRunning || timerPaused) return; // 未计时/暂停中别动显示：暂停时表定格在暂停时刻
+  const elapsed = liveElapsedSec();
   document.getElementById('timer-display').textContent = fmtTime(elapsed);
   if (elapsed !== lastShownSec) { lastShownSec = elapsed; updateTimerCount(); if (statTab === 'day') renderStats(); } // 今日统计实时同步
 }
@@ -1280,10 +1335,10 @@ function adjustTimer(min) {
   const delta = min * 60;
   if (timerRunning) {
     timerStart -= delta * 1000; // +10分 => 起点前移10分钟
-    if (Date.now() - timerStart < 0) timerStart = Date.now();
-    DB.set('timer_state', { running: true, start: timerStart });
+    if (refNow() - timerStart < 0) timerStart = refNow();
+    DB.set('timer_state', { running: true, start: timerStart, paused: timerPaused, pausedAt: timerPaused ? pausedAt : undefined });
     lastShownSec = -1;
-    updateTimerDisplay();
+    if (!timerPaused) updateTimerDisplay();
     toast(`已${min > 0 ? '加' : '减'} ${Math.abs(min)} 分钟`, 'success');
   } else {
     timerAdjustSec = 0; // 旧版挂起的补时不再等待"开始"，直接走下面入账
@@ -1333,7 +1388,7 @@ function updateAdjustUI() {
 function updateTimerCount() {
   const segs = getTodaySegments();
   let totalSec = segs.reduce((s, x) => s + x.duration, 0);
-  if (timerRunning) totalSec += Math.floor((Date.now() - timerStart) / 1000); // 进行中的时间也计入今日
+  if (timerRunning) totalSec += liveElapsedSec(); // 进行中的时间也计入今日（暂停不计）
   const fmt = CFG.statLabels.timer_count || '今日 {n} 段 · 共 {m}';
   document.getElementById('timer-count').textContent = fmt.replace('{n}',segs.length).replace('{m}',fmtDual(totalSec)).replace('分钟 分钟', '分钟');
   updateRecordBadge();
@@ -1370,7 +1425,7 @@ function updateRecordBadge() {
   }
   const segs = data[today()] || [];
   let todaySec = segs.reduce((a, x) => a + (x.duration || 0), 0);
-  if (timerRunning) todaySec += Math.floor((Date.now() - timerStart) / 1000);
+  if (timerRunning) todaySec += liveElapsedSec();
   if (todaySec > bestSec) { bestSec = todaySec; bestDate = today(); }
   if (bestSec < 60) { el.textContent = ''; return; }
   const parts = bestDate.split('-');
@@ -1386,13 +1441,20 @@ function restoreTimer() {
   if (!st || !st.running || !st.start) return;
   timerRunning = true;
   timerStart = st.start;
+  if (st.paused) {
+    // 恢复为暂停态：表停在暂停时刻，等用户手动继续
+    timerPaused = true; pausedAt = st.pausedAt || Date.now();
+    document.getElementById('timer-display').textContent = fmtTime(liveElapsedSec());
+  } else {
+    document.getElementById('timer-display').classList.add('running');
+    updateTimerDisplay();
+    timerInterval = setInterval(updateTimerDisplay, 100);
+    const elapsed = liveElapsedSec();
+    if (elapsed >= 60) toast(`页面重载，计时已恢复，本次已进行 ${fmtMin(elapsed)}`, 'success');
+  }
   document.getElementById('timer-start').disabled = true;
   document.getElementById('timer-stop').disabled = false;
-  document.getElementById('timer-display').classList.add('running');
-  updateTimerDisplay();
-  timerInterval = setInterval(updateTimerDisplay, 100);
-  const elapsed = Math.floor((Date.now() - timerStart) / 1000);
-  if (elapsed >= 60) toast(`页面重载，计时已恢复，本次已进行 ${fmtMin(elapsed)}`, 'success');
+  updatePauseBtn();
 }
 // 从后台切回前台的瞬间立即校准显示，不等节流定时器
 document.addEventListener('visibilitychange', () => {
@@ -2236,7 +2298,7 @@ function getCategoryStats() {
   // 进行中的计时也归入今天（若今天在统计范围内）
   if (timerRunning && dates.includes(today())) {
     const k = timerSubject || '未分类';
-    bySubj[k] = (bySubj[k] || 0) + Math.floor((Date.now() - timerStart) / 1000);
+    bySubj[k] = (bySubj[k] || 0) + liveElapsedSec();
   }
   return Object.entries(bySubj)
     .filter(e => e[1] > 0)
@@ -2474,7 +2536,7 @@ function renderStats() {
   if (statTab === 'day') {
     const todayStats = stats[0];
     const segs = todayStats.segments;
-    const liveSec = (statsDayOffset === 0 && timerRunning) ? Math.floor((Date.now() - timerStart) / 1000) : 0; // 进行中的时间（只属于今天）
+    const liveSec = (statsDayOffset === 0 && timerRunning) ? liveElapsedSec() : 0; // 进行中的时间（只属于今天，暂停不计）
     // Day navigation header
     const dLabel = statsDayOffset === 0 ? '今日' : statsDayOffset === -1 ? '昨日' : `前${-statsDayOffset}天`;
     const dShort = todayStats.date.slice(5).replace('-','/');
