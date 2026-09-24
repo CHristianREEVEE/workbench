@@ -221,6 +221,7 @@
   }
   .checkin-count { font-size: 14px; color: var(--text-mid); }
   .checkin-count b { font-size: 24px; color: var(--accent-light); }
+  .checkin-count b .min-sub { font-size: 13px; font-weight: 400; color: var(--text-mid); }
   .streak-row { display: flex; justify-content: center; gap: 24px; margin-top: 10px; }
   .streak-item { text-align: center; }
   .streak-item .label { font-size: 12px; color: var(--text-dim); margin-bottom: 2px; }
@@ -1348,7 +1349,12 @@ function updateStudyTotal() {
     else (data[d] || []).forEach(seg => { totalSec += seg.duration; });
   });
   const el = document.getElementById('study-total');
-  if (el) el.textContent = fmtMin(totalSec);
+  if (!el) return;
+  // 小时正常字体，括号分钟缩小变细（.min-sub）
+  const h = totalSec / 3600, m = Math.round(totalSec / 60);
+  el.innerHTML = h >= 1
+    ? h.toFixed(1) + '小时<span class="min-sub">（' + m + '分钟）</span>'
+    : m + '分钟';
 }
 // 历史最长纪录：全期单日学习时长之最；今天刷新纪录时高亮
 function fmtRec(s) { return fmtMin(s); }
@@ -2212,53 +2218,52 @@ function chartPeriodLabel() {
   return statsMonthOffset === 0 ? '本月' : statsMonthOffset === -1 ? '上月' : '前' + (-statsMonthOffset) + '个月';
 }
 function getCategoryStats() {
+  // 只统计时间：每科目在该周期内的计时秒数（segments 带 subject 归科；manual_time 覆盖日无科目细分，归未分类）
   const dates = getChartDates();
-  const cats = [];
-  // 内置任务：按 tasks 扁平索引聚合各日记录
-  tasks.forEach((t, i) => {
-    let unit = '次', val = 0;
-    if (t.isVocab) { unit = '页'; dates.forEach(d => { val += DB.get('vocab_today_' + d, 0); }); }
-    else if (t.isMath) { unit = '考点'; dates.forEach(d => { val += DB.get('math_today_' + d, 0); }); }
-    else dates.forEach(d => { if (DB.get('tasks_' + d, []).includes(i)) val++; });
-    cats.push({ label: t.cat, unit, val });
-  });
-  // 自定义板块任务
-  (CFG.customGroups || []).forEach(g => g.items.forEach(t => {
-    const key = 'c' + t.id;
-    if (t.mode === 'page' || t.mode === 'point') {
-      const unit = t.mode === 'page' ? '页' : '考点';
-      let val = 0;
-      dates.forEach(d => { val += DB.get('ctoday_' + key + '_' + d, 0); });
-      cats.push({ label: t.cat, unit, val });
+  const data = DB.get('timer_segments', {}) || {};
+  const overrides = DB.get('manual_time', {}) || {};
+  const bySubj = {};
+  dates.forEach(d => {
+    if (overrides[d] !== undefined) {
+      bySubj['未分类'] = (bySubj['未分类'] || 0) + overrides[d] * 60;
     } else {
-      let val = 0;
-      dates.forEach(d => { if (DB.get('tasks_' + d, []).includes(key)) val++; });
-      cats.push({ label: t.cat, unit: '次', val });
+      (data[d] || []).forEach(s => {
+        const k = s.subject || '未分类';
+        bySubj[k] = (bySubj[k] || 0) + (s.duration || 0);
+      });
     }
-  }));
-  return cats;
+  });
+  // 进行中的计时也归入今天（若今天在统计范围内）
+  if (timerRunning && dates.includes(today())) {
+    const k = timerSubject || '未分类';
+    bySubj[k] = (bySubj[k] || 0) + Math.floor((Date.now() - timerStart) / 1000);
+  }
+  return Object.entries(bySubj)
+    .filter(e => e[1] > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(e => ({ label: e[0], sec: e[1] }));
 }
 function buildBarSVG(cats) {
-  const shown = cats.filter(c => c.val > 0);
+  const shown = cats.filter(c => c.sec > 0);
   if (!shown.length) return '<div style="text-align:center;padding:30px 0;color:var(--text-mid);font-size:14px">该周期暂无学习记录</div>';
-  const maxV = Math.max(...shown.map(c => c.val));
-  const W = 340, labelW = 92, valW = 84, rowH = 40, H = shown.length * rowH + 16;
+  const maxV = Math.max(...shown.map(c => c.sec));
+  const W = 340, labelW = 78, valW = 118, rowH = 40, H = shown.length * rowH + 16;
   let rows = '';
   shown.forEach((c, i) => {
     const y = i * rowH + 12;
     const barMax = W - labelW - valW - 8;
-    const bw = Math.max(4, Math.round(c.val / maxV * barMax));
+    const bw = Math.max(4, Math.round(c.sec / maxV * barMax));
     rows += `<text x="${labelW - 10}" y="${y + 15}" text-anchor="end" font-size="12" fill="#a8a0b8">${esc(c.label)}</text>
       <rect x="${labelW}" y="${y}" width="${bw}" height="16" rx="8" fill="${CHART_COLORS[i % CHART_COLORS.length]}" opacity="0.9"/>
-      <text x="${labelW + bw + 8}" y="${y + 13}" font-size="12" font-weight="600" fill="#e8e4ec">${c.val}${c.unit === '次' ? ' 次' : ' ' + c.unit}</text>`;
+      <text x="${labelW + bw + 8}" y="${y + 13}" font-size="12" font-weight="600" fill="#e8e4ec">${fmtBar(c.sec)}</text>`;
   });
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">${rows}</svg>`;
 }
 const PIE_COLORS = ['#e08e94', '#9fd4bd', '#6496a8', '#d4bc7e', '#b79de0', '#84a9de', '#e0987e', '#a2c9a5'];
 function buildPieSVG(cats) {
-  const shown = cats.filter(c => c.val > 0);
+  const shown = cats.filter(c => c.sec > 0);
   if (!shown.length) return '<div style="text-align:center;padding:30px 0;color:var(--text-mid);font-size:14px">该周期暂无学习记录</div>';
-  const total = shown.reduce((s, c) => s + c.val, 0);
+  const total = shown.reduce((s, c) => s + c.sec, 0);
   const W = 340, cx = 170, cy = 112, r = 84;
   const polar = (rr, ang) => [cx + rr * Math.cos(ang), cy + rr * Math.sin(ang)];
   let acc = -Math.PI / 2;
@@ -2268,7 +2273,7 @@ function buildPieSVG(cats) {
     sectors = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${PIE_COLORS[0]}" opacity="0.92"/>`;
     labels = `<text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="12" font-weight="600" fill="#23202b">${esc(shown[0].label)}</text>`;
   } else shown.forEach((c, i) => {
-    const frac = c.val / total;
+    const frac = c.sec / total;
     const a0 = acc, a1 = acc + frac * 2 * Math.PI; acc = a1;
     const am = (a0 + a1) / 2;
     const [x1, y1] = polar(r, a0), [x2, y2] = polar(r, a1);
@@ -2280,7 +2285,7 @@ function buildPieSVG(cats) {
       const [lx, ly] = polar(r * 0.62, am);
       labels += `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="600" fill="#23202b">${esc(c.label)}</text>`;
     }
-    // 引导线：扇区边缘 → 外扩点 → 水平短线 → 数值
+    // 引导线：扇区边缘 → 外扩点 → 水平短线 → 数值（紧凑分钟，避免长标签溢出）
     if (frac >= 0.07) {
       const cs = Math.cos(am), sn = Math.sin(am);
       const [ex, ey] = polar(r, am);
@@ -2288,19 +2293,19 @@ function buildPieSVG(cats) {
       const side = Math.abs(cs) < 0.35 ? 0 : (cs > 0 ? 1 : -1);
       const hx = jx + side * 26;
       leaders += `<polyline points="${ex.toFixed(1)},${ey.toFixed(1)} ${jx.toFixed(1)},${jy.toFixed(1)} ${hx.toFixed(1)},${jy.toFixed(1)}" fill="none" stroke="#6e6878" stroke-width="1"/>
-        <text x="${(hx + side * 5).toFixed(1)}" y="${(jy + 4).toFixed(1)}" text-anchor="${side === 0 ? 'middle' : (side > 0 ? 'start' : 'end')}" font-size="11" fill="#e8e4ec">${c.val}${c.unit === '次' ? ' 次' : ' ' + c.unit}</text>`;
+        <text x="${(hx + side * 5).toFixed(1)}" y="${(jy + 4).toFixed(1)}" text-anchor="${side === 0 ? 'middle' : (side > 0 ? 'start' : 'end')}" font-size="11" fill="#e8e4ec">${Math.round(c.sec / 60)}分钟</text>`;
     }
   });
-  // 总计 + 图例（参考图样式：百分比 | 色点 | 名称 …… 数值）
+  // 总计 + 图例（参考图样式：百分比 | 色点 | 名称 …… 时长）
   const totalY = cy + r + 34;
-  let legend = `<text x="${cx}" y="${totalY}" text-anchor="middle" font-size="14" font-weight="700" fill="#e8e4ec">总计 ${total}</text>`;
+  let legend = `<text x="${cx}" y="${totalY}" text-anchor="middle" font-size="14" font-weight="700" fill="#e8e4ec">总计 ${fmtBar(total)}</text>`;
   shown.forEach((c, i) => {
-    const pct = (c.val / total * 100).toFixed(1).replace(/\.0$/, '');
+    const pct = (c.sec / total * 100).toFixed(1).replace(/\.0$/, '');
     const y = totalY + 24 + i * 27;
     legend += `<text x="4" y="${y}" font-size="11" fill="#6e6878">${pct}%</text>
       <rect x="52" y="${y - 10}" width="12" height="12" rx="3" fill="${PIE_COLORS[i % PIE_COLORS.length]}"/>
       <text x="72" y="${y}" font-size="12.5" fill="#e8e4ec">${esc(c.label)}</text>
-      <text x="336" y="${y}" text-anchor="end" font-size="12" fill="#a8a0b8">${c.val}${c.unit === '次' ? ' 次' : ' ' + c.unit}</text>`;
+      <text x="336" y="${y}" text-anchor="end" font-size="12" fill="#a8a0b8">${fmtBar(c.sec)}</text>`;
   });
   const H = totalY + 40 + shown.length * 27;
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">
@@ -2309,7 +2314,7 @@ function buildPieSVG(cats) {
 }
 function showTaskChart(type) {
   const cats = getCategoryStats();
-  document.getElementById('chart-title').textContent = '各科学习量 · ' + chartPeriodLabel();
+  document.getElementById('chart-title').textContent = '各科学习时长 · ' + chartPeriodLabel();
   document.getElementById('chart-svg-wrap').innerHTML = type === 'pie' ? buildPieSVG(cats) : buildBarSVG(cats);
   document.getElementById('chart-overlay').classList.add('show');
 }
