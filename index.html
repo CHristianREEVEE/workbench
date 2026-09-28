@@ -69,6 +69,9 @@
     transition: transform .15s ease, color .15s ease;
   }
   .wallpaper-btn:active { transform: scale(0.92); color: var(--text); }
+  #refresh-btn { right: 60px; }  /* 与 👕 并排错开，不重叠 */
+  .wallpaper-btn.spinning { animation: wbspin .8s linear infinite; color: var(--accent, #8b9cf7); }
+  @keyframes wbspin { to { transform: rotate(360deg); } }
   .wp-veil-row { display: flex; align-items: center; gap: 12px; margin: 8px 0 2px; }
   .wp-veil-row input[type=range] { flex: 1; accent-color: var(--accent); }
   .wp-veil-row .wp-veil-val { font-size: 13px; color: var(--text-mid); min-width: 38px; text-align: right; }
@@ -709,6 +712,7 @@
   <div class="main-title">南浊 · 个人工作台</div>
   <button class="wallpaper-btn" onclick="openWallpaperModal()" title="壁纸设置">👕</button>
   <button class="motto-edit-btn" onclick="openMottoModal()" title="修改格言" aria-label="修改格言"><span class="orb"></span></button>
+  <button class="wallpaper-btn" id="refresh-btn" onclick="refreshApp(this)" title="拉取云端最新数据并刷新" aria-label="刷新">🔄</button>
 </header>
 
 <div class="container">
@@ -2728,6 +2732,29 @@ function probeVersion() {
 probeVersion();
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') probeVersion(); });
 window.addEventListener('pageshow', e => { if (e.persisted) probeVersion(); });
+
+// ====== 手动刷新（标题栏 🔄）：拉云端最新→合并→重渲染 ======
+async function refreshApp(btn) {
+  if (btn) { btn.classList.add('spinning'); btn.disabled = true; }
+  try {
+    const n = await SYNC.pull();
+    if (n) {
+      try {
+        const fresh = JSON.parse(localStorage.getItem('workbench_config') || '{}');
+        Object.keys(CFG).forEach(k => delete CFG[k]);
+        Object.assign(CFG, fresh);
+      } catch (e) {}
+      try { renderTabs(); renderMotto(); renderTasks(); renderStats(); renderHeat(); renderMemos(); updateCheckinUI(); updateTimerCount(); updateStudyTotal(); drawWheel(); } catch (e) {}
+      toast('🔄 已刷新：云端合并 ' + n + ' 条数据');
+    } else {
+      toast('🔄 已刷新：本地即最新');
+    }
+    SYNC.pushAll();
+  } catch (e) {
+    toast('⚠️ 刷新失败：云端暂不可达');
+  }
+  if (btn) { btn.classList.remove('spinning'); btn.disabled = false; }
+}
 
 // ====== 云同步：加载时拉云端合并，有更新则刷新界面；再全量对账推送（历史数据兜底上云）======
 (async () => {
