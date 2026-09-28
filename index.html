@@ -69,7 +69,7 @@
     transition: transform .15s ease, color .15s ease;
   }
   .wallpaper-btn:active { transform: scale(0.92); color: var(--text); }
-  #refresh-btn { right: 60px; }  /* 与 👕 并排错开，不重叠 */
+  header .wallpaper-btn:not(#refresh-btn) { right: 60px; }  /* 👕 让位：🔄 刷新键居最右 */
   .wallpaper-btn.spinning { animation: wbspin .8s linear infinite; color: var(--accent, #8b9cf7); }
   @keyframes wbspin { to { transform: rotate(360deg); } }
   .wp-veil-row { display: flex; align-items: center; gap: 12px; margin: 8px 0 2px; }
