@@ -2397,21 +2397,20 @@ function showTaskChart(type) {
 }
 function closeChartModal() { document.getElementById('chart-overlay').classList.remove('show'); }
 
-// ====== 努力全景（学习热力图：月视图/总览，蓝色梯度，点格子跳当天统计）======
+// ====== 努力全景（学习热力图：月视图/总览，点格子跳当天统计）======
 let heatMode = 'month', heatMonthOffset = 0;
-// 连续渐变（2026-09-30 二修，TA 拍板「图2 那样」）：亮度∝当日时长/当前视图峰值，无离散档——
-// 冠军独占最亮、多的亮少的暗、2h 和 4h 亮度可分（旧版 4 档离散=同档同色分不出；分位版=最亮被平分看不出冠军）
-let heatMaxSec = 0;
-const HEAT_STOPS = ['#223a5e', '#33568c', '#4f7cff', '#8fb7ff']; // 深→浅四站渐变，与积分面板同族
-function heatColor(sec) {
-  if (!sec) return 'rgba(255,255,255,0.07)'; // 空格子淡底骨架
-  const b = Math.min(1, sec / (heatMaxSec || 1)) * (HEAT_STOPS.length - 1);
-  const i = Math.min(HEAT_STOPS.length - 2, Math.floor(b));
-  const f = b - i;
-  const c1 = HEAT_STOPS[i].match(/\w\w/g).map(h => parseInt(h, 16));
-  const c2 = HEAT_STOPS[i + 1].match(/\w\w/g).map(h => parseInt(h, 16));
-  return 'rgb(' + c1.map((v, k) => Math.round(v + (c2[k] - v) * f)).join(',') + ')';
+// 与积分面板同款（TA 2026-09-30 拍板「和积分消耗一样简单明了」）：离散5档 + 按当前视图峰值线性四等分——
+// 峰值日独占最亮色一眼跳出；旧固定阈值版（<30分/<1时/<2时）长尾全挤同档，分位版/渐变版均废弃
+const HEAT_COLORS = ['rgba(255,255,255,0.07)', '#223a5e', '#33568c', '#4f7cff', '#8fb7ff'];
+let heatMaxSec = 0; // 当前视图（本月或全期）活跃日最大时长，分档基准
+function heatLevel(sec) {
+  if (!sec || !heatMaxSec) return 0;
+  if (sec <= heatMaxSec * .25) return 1;
+  if (sec <= heatMaxSec * .5) return 2;
+  if (sec <= heatMaxSec * .75) return 3;
+  return 4;
 }
+function heatColor(sec) { return HEAT_COLORS[heatLevel(sec)]; }
 function getHeatData() {
   const data = getAllTimerData();
   const map = {};
@@ -2497,7 +2496,7 @@ function renderHeat() {
   document.getElementById('heat-label').textContent = labelText;
   const legend = document.getElementById('heat-legend');
   if (legend && !legend.childElementCount) {
-    legend.innerHTML = '<div style="font-size:10px;color:var(--text-mid)">少</div><div style="width:72px;height:10px;border-radius:5px;background:linear-gradient(90deg,#223a5e,#33568c,#4f7cff,#8fb7ff)"></div><div style="font-size:10px;color:var(--text-mid)">多</div>';
+    legend.innerHTML = HEAT_COLORS.map(c => '<div style="width:12px;height:12px;border-radius:3px;background:' + c + '"></div>').join('');
   }
 }
 function minHeatOffset() {
