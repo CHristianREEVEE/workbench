@@ -2399,25 +2399,18 @@ function closeChartModal() { document.getElementById('chart-overlay').classList.
 
 // ====== 努力全景（学习热力图：月视图/总览，蓝色梯度，点格子跳当天统计）======
 let heatMode = 'month', heatMonthOffset = 0;
-const HEAT_COLORS = ['rgba(255,255,255,0.07)', '#223a5e', '#33568c', '#4f7cff', '#8fb7ff'];
-// 分位分档（2026-09-30 修「对比拉不开」）：按当前视图活跃日的分位数划档——旧版按最大值 25/50/75% 分档，
-// 长尾数据（一天 8h 其余几十分钟）会把大部分日子全挤进最低档同一颜色；分位分档保证各档天数大致均分，梯度始终拉开
-let heatT = [Infinity, Infinity, Infinity]; // 阈值数组：sec<=t[0]→1档，<=t[1]→2档，<=t[2]→3档，更大→4档
-function heatThresholds(vals) {
-  const a = vals.filter(s => s > 0).sort((x, y) => x - y); // 只统计活跃日
-  if (!a.length) return [0, 0, 0];
-  const mx = a[a.length - 1];
-  if (a.length < 4) return [mx * .25, mx * .5, mx * .75]; // 活跃日太少，退化为按最大值比例
-  let t = [a[Math.floor(a.length * .25)], a[Math.floor(a.length * .5)], a[Math.floor(a.length * .75)]];
-  if (t[0] === t[1] || t[1] === t[2] || t[0] === t[2]) t = [mx * .25, mx * .5, mx * .75]; // 并列值太多分位失效，退化
-  return t;
-}
-function heatLevel(sec) {
-  if (!sec) return 0;
-  if (sec <= heatT[0]) return 1;
-  if (sec <= heatT[1]) return 2;
-  if (sec <= heatT[2]) return 3;
-  return 4;
+// 连续渐变（2026-09-30 二修，TA 拍板「图2 那样」）：亮度∝当日时长/当前视图峰值，无离散档——
+// 冠军独占最亮、多的亮少的暗、2h 和 4h 亮度可分（旧版 4 档离散=同档同色分不出；分位版=最亮被平分看不出冠军）
+let heatMaxSec = 0;
+const HEAT_STOPS = ['#223a5e', '#33568c', '#4f7cff', '#8fb7ff']; // 深→浅四站渐变，与积分面板同族
+function heatColor(sec) {
+  if (!sec) return 'rgba(255,255,255,0.07)'; // 空格子淡底骨架
+  const b = Math.min(1, sec / (heatMaxSec || 1)) * (HEAT_STOPS.length - 1);
+  const i = Math.min(HEAT_STOPS.length - 2, Math.floor(b));
+  const f = b - i;
+  const c1 = HEAT_STOPS[i].match(/\w\w/g).map(h => parseInt(h, 16));
+  const c2 = HEAT_STOPS[i + 1].match(/\w\w/g).map(h => parseInt(h, 16));
+  return 'rgb(' + c1.map((v, k) => Math.round(v + (c2[k] - v) * f)).join(',') + ')';
 }
 function getHeatData() {
   const data = getAllTimerData();
@@ -2427,9 +2420,8 @@ function getHeatData() {
 }
 function pad2(n) { return String(n).padStart(2, '0'); }
 function heatCell(ds, sec, size) {
-  const lv = heatLevel(sec);
   const label = ds.slice(5).replace('-', '/') + ' ' + (sec ? fmtMin(sec) : '无记录');
-  return '<div class="hmc" style="width:' + size + 'px;height:' + size + 'px;background:' + HEAT_COLORS[lv] + '" title="' + label + '" onclick="heatJump(\'' + ds + '\')"></div>';
+  return '<div class="hmc" style="width:' + size + 'px;height:' + size + 'px;background:' + heatColor(sec) + '" title="' + label + '" onclick="heatJump(\'' + ds + '\')"></div>';
 }
 function setHeatMode(m) {
   heatMode = m;
@@ -2453,19 +2445,17 @@ function renderHeat() {
     const days = new Date(y, m + 1, 0).getDate();
     const size = 22, gap = 4;
     let monthSec = 0, cellsHtml = '';
-    const monthVals = [];
-    for (let d = 1; d <= days; d++) { // 先扫一遍取本月各日值（分位分档基准）
+    heatMaxSec = 0;
+    for (let d = 1; d <= days; d++) { // 先扫一遍取本月峰值（连续渐变基准）
       const ds = y + '-' + pad2(m + 1) + '-' + pad2(d);
-      monthVals.push(data[ds] || 0);
+      heatMaxSec = Math.max(heatMaxSec, data[ds] || 0);
     }
-    heatT = heatThresholds(monthVals);
     for (let d = 1; d <= days; d++) {
       const ds = y + '-' + pad2(m + 1) + '-' + pad2(d);
       const sec = data[ds] || 0;
       monthSec += sec;
-      const lv = heatLevel(sec);
       const label = ds.slice(5).replace('-', '/') + ' ' + (sec ? fmtMin(sec) : '无记录');
-      const bg = 'background:' + HEAT_COLORS[lv];
+      const bg = 'background:' + heatColor(sec);
       cellsHtml += '<div class="hmc" style="width:' + size + 'px;height:' + size + 'px;' + bg + '" title="' + label + '" onclick="heatJump(\'' + ds + '\')"></div>';
     }
     html = '<div style="display:grid;grid-template-columns:repeat(7,' + size + 'px);gap:' + gap + 'px;justify-content:center">' + cellsHtml + '</div>';
@@ -2475,7 +2465,7 @@ function renderHeat() {
   } else {
     // 总览：从首条记录的周一到本周，月标签行 + 周列（13px 小格子，横向滚动）
     const keys = Object.keys(data).sort();
-    heatT = heatThresholds(keys.map(k => data[k] || 0)); // 全期活跃日分位=总览分档基准
+    heatMaxSec = keys.reduce((mx, k) => Math.max(mx, data[k] || 0), 0); // 全期峰值=总览渐变基准
     let start = keys.length ? new Date(keys[0] + 'T00:00:00') : new Date(Date.now() - 35 * 86400000);
     start.setHours(0, 0, 0, 0);
     start.setDate(start.getDate() - (start.getDay() + 6) % 7);
@@ -2507,7 +2497,7 @@ function renderHeat() {
   document.getElementById('heat-label').textContent = labelText;
   const legend = document.getElementById('heat-legend');
   if (legend && !legend.childElementCount) {
-    legend.innerHTML = HEAT_COLORS.map(c => '<div style="width:12px;height:12px;border-radius:3px;background:' + c + '"></div>').join('');
+    legend.innerHTML = '<div style="font-size:10px;color:var(--text-mid)">少</div><div style="width:72px;height:10px;border-radius:5px;background:linear-gradient(90deg,#223a5e,#33568c,#4f7cff,#8fb7ff)"></div><div style="font-size:10px;color:var(--text-mid)">多</div>';
   }
 }
 function minHeatOffset() {
