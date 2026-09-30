@@ -255,10 +255,24 @@ textarea.input{resize:vertical;min-height:80px}
 </div>
 <script>
 "use strict";
+const SYNC={
+  key:'wb_sync_2026',
+  url:'https://wb.reeve10001.top/wbsync/api/',
+  dirty:{},timer:null,
+  mark(k,v){this.dirty[k]=v;clearTimeout(this.timer);this.timer=setTimeout(()=>this.push(),2000)},
+  async push(){
+    const d=this.dirty;this.dirty={};
+    if(!Object.keys(d).length)return;
+    try{
+      await fetch(this.url+'sync?k='+this.key,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+      console.log('[wbsync] 已推送后台修改上云：',Object.keys(d).join(','));
+    }catch(e){for(const k in d)this.dirty[k]=d[k]}
+  }
+};
 const DB={
   get(k,d){try{const v=localStorage.getItem('wb_'+k);return v?JSON.parse(v):d}catch(e){return d}},
-  set(k,v){localStorage.setItem('wb_'+k,JSON.stringify(v))},
-  del(k){localStorage.removeItem('wb_'+k)},
+  set(k,v){localStorage.setItem('wb_'+k,JSON.stringify(v));SYNC.mark(k,v)},
+  del(k){localStorage.removeItem('wb_'+k);SYNC.mark(k,null)},
   keys(){return Object.keys(localStorage).filter(k=>k.startsWith('wb_')).map(k=>k.slice(3))}
 };
 const defaultConfig={
@@ -285,29 +299,8 @@ const defaultConfig={
   vocabTotal:427,
   configVersion:4
 };
-function pullCloudCfg(){
-  // 拉云端 workbench_config 覆盖本地（保证 admin 基线=云端最新，避免以旧改旧）
-  try{
-    fetch('https://wb.reeve10001.top/wbsync/api/all?k=wb_sync_2026').then(function(r){return r.json()}).then(function(j){
-      if(j&&j.ok&&j.data&&j.data.workbench_config){
-        var cv=j.data.workbench_config,lv=null;
-        try{lv=JSON.parse(localStorage.getItem('workbench_config'))}catch(e){}
-        if(JSON.stringify(cv)!==JSON.stringify(lv)){
-          localStorage.setItem('workbench_config',JSON.stringify(cv));
-          reloadConfig();renderCfgTabs();renderCfgCardTitles();renderCfgButtons();renderCfgStatLabels();renderCfgStatTabs();renderCfgStatRowLabels();renderCfgWeekTimes();renderCfgTaskGroups();document.getElementById('cfg-vocabTotal').value=CFG.vocabTotal||427;document.getElementById('cfg-mathTotal').value=CFG.mathTotal||76;
-        }
-      }
-    }).catch(function(){});
-  }catch(e){}
-}
 function loadConfig(){try{const v=localStorage.getItem('workbench_config');if(!v)return JSON.parse(JSON.stringify(defaultConfig));const saved=JSON.parse(v);if(!saved.configVersion||saved.configVersion<defaultConfig.configVersion){saved.tabs=defaultConfig.tabs;saved.cardTitles=defaultConfig.cardTitles;saved.buttons=defaultConfig.buttons;saved.taskGroups=defaultConfig.taskGroups;saved.mathTotal=defaultConfig.mathTotal;saved.vocabTotal=defaultConfig.vocabTotal;saved.configVersion=defaultConfig.configVersion;localStorage.setItem('workbench_config',JSON.stringify(saved));return saved}return saved}catch(e){return JSON.parse(JSON.stringify(defaultConfig))}}
-function saveConfigRaw(cfg){
-  localStorage.setItem('workbench_config',JSON.stringify(cfg));
-  // 后台改的配置也要推上云端（否则前台 pull 时被云端旧值覆盖，"后台改了前台不变"）
-  try{
-    fetch('https://wb.reeve10001.top/wbsync/api/sync?k=wb_sync_2026',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({workbench_config:cfg})}).catch(function(){});
-  }catch(e){}
-}
+function saveConfigRaw(cfg){localStorage.setItem('workbench_config',JSON.stringify(cfg));SYNC.mark('workbench_config',cfg)}
 let CFG=loadConfig();
 let MATH_TOTAL=CFG.mathTotal;
 let VOCAB_TOTAL=CFG.vocabTotal;
@@ -611,8 +604,7 @@ function loadTimerSegments(){
   let html='<table class="data-table"><thead><tr><th>开始</th><th>结束</th><th>时长</th><th>操作</th></tr></thead><tbody>';
   segs.forEach(function(s,i){
     const st=new Date(s.start),en=new Date(s.end);
-    var timeCols=s.manual?'<td>加时</td><td>—</td>':'<td>'+st.toTimeString().slice(0,5)+'</td><td>'+en.toTimeString().slice(0,5)+'</td>';
-    html+='<tr>'+timeCols+'<td><b>'+fmtMin(s.duration)+'</b></td><td><button class="btn btn-sm btn-red" onclick="delTimerSeg(\''+date+'\','+i+')">删除</button></td></tr>';
+    html+='<tr><td>'+st.toTimeString().slice(0,5)+'</td><td>'+en.toTimeString().slice(0,5)+'</td><td><b>'+fmtMin(s.duration)+'</b></td><td><button class="btn btn-sm btn-red" onclick="delTimerSeg(\''+date+'\','+i+')">删除</button></td></tr>';
   });
   html+='</tbody></table>';
   const total=segs.reduce(function(s,x){return s+x.duration},0);
@@ -757,7 +749,7 @@ function clearAllData(){
 }
 document.getElementById('timer-date').value=today();
 
-renderOverview();pullCloudCfg();
+renderOverview();
 </script>
 </body>
 </html>

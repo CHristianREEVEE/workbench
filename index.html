@@ -772,6 +772,7 @@
       </div>
       <div class="timer-adjust">
         <span style="font-size:13px;color:var(--text-mid)">补时</span>
+        <button class="ta-btn" onclick="adjustTimer(-60)">−1时</button>
         <button class="ta-btn" onclick="adjustTimer(-10)">−10分</button>
         <button class="ta-btn" onclick="adjustTimer(-1)">−1分</button>
         <button class="ta-btn" onclick="adjustTimer(1)">+1分</button>
@@ -1348,8 +1349,11 @@ function adjustTimer(min) {
     if (refNow() - timerStart < 0) timerStart = refNow();
     DB.set('timer_state', { running: true, start: timerStart, paused: timerPaused, pausedAt: timerPaused ? pausedAt : undefined });
     lastShownSec = -1;
-    if (!timerPaused) updateTimerDisplay();
-    toast(`已${min > 0 ? '加' : '减'} ${Math.abs(min)} 分钟`, 'success');
+    // 大表+今日统计必须当场刷新（暂停中 updateTimerDisplay 会提前返回，旧版只弹 toast，屏幕纹丝不动=不知道剪到啥程度）
+    document.getElementById('timer-display').textContent = fmtTime(liveElapsedSec());
+    updateTimerCount();
+    if (statTab === 'day') renderStats();
+    toast(`已${min > 0 ? '加' : '减'} ${Math.abs(min)} 分钟，本段 ${fmtMin(liveElapsedSec())}`, 'success');
   } else {
     timerAdjustSec = 0; // 旧版挂起的补时不再等待"开始"，直接走下面入账
     const segs = getTodaySegments();
@@ -1382,7 +1386,8 @@ function adjustTimer(min) {
       saveTodaySegments(segs);
       updateTimerCount();
       renderStats();
-      if (last && last.duration >= 60) toast(`已减 ${Math.abs(min)} 分钟`, 'success');
+      const daySec = segs.reduce((s, x) => s + x.duration, 0);
+      if (last && last.duration >= 60) toast(`已减 ${Math.abs(min)} 分钟，今日共 ${fmtMin(daySec)}`, 'success');
     }
     updateAdjustUI();
   }
@@ -2395,7 +2400,25 @@ function closeChartModal() { document.getElementById('chart-overlay').classList.
 // ====== 努力全景（学习热力图：月视图/总览，蓝色梯度，点格子跳当天统计）======
 let heatMode = 'month', heatMonthOffset = 0;
 const HEAT_COLORS = ['rgba(255,255,255,0.07)', '#223a5e', '#33568c', '#4f7cff', '#8fb7ff'];
-function heatLevel(sec) { if (!sec) return 0; if (sec < 1800) return 1; if (sec < 3600) return 2; if (sec < 7200) return 3; return 4; }
+// 分位分档（2026-09-30 修「对比拉不开」）：按当前视图活跃日的分位数划档——旧版按最大值 25/50/75% 分档，
+// 长尾数据（一天 8h 其余几十分钟）会把大部分日子全挤进最低档同一颜色；分位分档保证各档天数大致均分，梯度始终拉开
+let heatT = [Infinity, Infinity, Infinity]; // 阈值数组：sec<=t[0]→1档，<=t[1]→2档，<=t[2]→3档，更大→4档
+function heatThresholds(vals) {
+  const a = vals.filter(s => s > 0).sort((x, y) => x - y); // 只统计活跃日
+  if (!a.length) return [0, 0, 0];
+  const mx = a[a.length - 1];
+  if (a.length < 4) return [mx * .25, mx * .5, mx * .75]; // 活跃日太少，退化为按最大值比例
+  let t = [a[Math.floor(a.length * .25)], a[Math.floor(a.length * .5)], a[Math.floor(a.length * .75)]];
+  if (t[0] === t[1] || t[1] === t[2] || t[0] === t[2]) t = [mx * .25, mx * .5, mx * .75]; // 并列值太多分位失效，退化
+  return t;
+}
+function heatLevel(sec) {
+  if (!sec) return 0;
+  if (sec <= heatT[0]) return 1;
+  if (sec <= heatT[1]) return 2;
+  if (sec <= heatT[2]) return 3;
+  return 4;
+}
 function getHeatData() {
   const data = getAllTimerData();
   const map = {};
@@ -2430,6 +2453,12 @@ function renderHeat() {
     const days = new Date(y, m + 1, 0).getDate();
     const size = 22, gap = 4;
     let monthSec = 0, cellsHtml = '';
+    const monthVals = [];
+    for (let d = 1; d <= days; d++) { // 先扫一遍取本月各日值（分位分档基准）
+      const ds = y + '-' + pad2(m + 1) + '-' + pad2(d);
+      monthVals.push(data[ds] || 0);
+    }
+    heatT = heatThresholds(monthVals);
     for (let d = 1; d <= days; d++) {
       const ds = y + '-' + pad2(m + 1) + '-' + pad2(d);
       const sec = data[ds] || 0;
@@ -2446,6 +2475,7 @@ function renderHeat() {
   } else {
     // 总览：从首条记录的周一到本周，月标签行 + 周列（13px 小格子，横向滚动）
     const keys = Object.keys(data).sort();
+    heatT = heatThresholds(keys.map(k => data[k] || 0)); // 全期活跃日分位=总览分档基准
     let start = keys.length ? new Date(keys[0] + 'T00:00:00') : new Date(Date.now() - 35 * 86400000);
     start.setHours(0, 0, 0, 0);
     start.setDate(start.getDate() - (start.getDay() + 6) % 7);
@@ -2732,6 +2762,28 @@ function probeVersion() {
 probeVersion();
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') probeVersion(); });
 window.addEventListener('pageshow', e => { if (e.persisted) probeVersion(); });
+
+// ====== 后台修改→前台自动同步：切回前台 60s 节流拉云端，有变更即重渲染 ======
+let _lastAutoPull = Date.now();
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible') return;
+  if (Date.now() - _lastAutoPull < 60000) return;
+  if (timerRunning) return; // 计时中不平移数据，避免干扰当前段
+  _lastAutoPull = Date.now();
+  try {
+    const n = await SYNC.pull();
+    if (n) {
+      try {
+        const fresh = JSON.parse(localStorage.getItem('workbench_config') || '{}');
+        Object.keys(CFG).forEach(k => delete CFG[k]);
+        Object.assign(CFG, fresh);
+      } catch (e) {}
+      try { renderTabs(); renderMotto(); renderTasks(); renderStats(); renderHeat(); renderMemos(); updateCheckinUI(); updateTimerCount(); updateStudyTotal(); drawWheel(); } catch (e) {}
+      toast('☁️ 已同步后台修改 ' + n + ' 条');
+      SYNC.pushAll();
+    }
+  } catch (e) {}
+});
 
 // ====== 手动刷新（标题栏 🔄）：拉云端最新→合并→重渲染 ======
 async function refreshApp(btn) {
