@@ -574,6 +574,7 @@
   .hm-mode.sel { border-color: var(--accent); background: var(--accent-glow); color: var(--text); font-weight: 600; }
   .hmcol { display: flex; flex-direction: column; gap: 3px; }
   .hmc { width: 13px; height: 13px; border-radius: 3px; cursor: pointer; flex-shrink: 0; }
+  .hmc.sel { outline: 2px solid rgba(255,255,255,.92); outline-offset: 1px; } /* 点击选中高亮环（积分面板同族样式） */
   .hmwd { width: 12px; height: 13px; font-size: 9px; color: var(--text-dim); display: flex; align-items: center; justify-content: center; }
   .hmml { font-size: 9px; color: var(--text-dim); height: 12px; line-height: 12px; white-space: nowrap; overflow: visible; }
   .subj-chip { font-size: 12px; color: var(--text-mid); background: var(--bg-2); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; cursor: pointer; flex-shrink: 0; }
@@ -2420,7 +2421,7 @@ function getHeatData() {
 function pad2(n) { return String(n).padStart(2, '0'); }
 function heatCell(ds, sec, size) {
   const label = ds.slice(5).replace('-', '/') + ' ' + (sec ? fmtMin(sec) : '无记录');
-  return '<div class="hmc" style="width:' + size + 'px;height:' + size + 'px;background:' + heatColor(sec) + '" title="' + label + '" onclick="heatJump(\'' + ds + '\')"></div>';
+  return '<div class="hmc" data-ds="' + ds + '" style="width:' + size + 'px;height:' + size + 'px;background:' + heatColor(sec) + '" title="' + label + '" onclick="heatJump(\'' + ds + '\')"></div>';
 }
 function setHeatMode(m) {
   heatMode = m;
@@ -2455,7 +2456,7 @@ function renderHeat() {
       monthSec += sec;
       const label = ds.slice(5).replace('-', '/') + ' ' + (sec ? fmtMin(sec) : '无记录');
       const bg = 'background:' + heatColor(sec);
-      cellsHtml += '<div class="hmc" style="width:' + size + 'px;height:' + size + 'px;' + bg + '" title="' + label + '" onclick="heatJump(\'' + ds + '\')"></div>';
+      cellsHtml += '<div class="hmc" data-ds="' + ds + '" style="width:' + size + 'px;height:' + size + 'px;' + bg + '" title="' + label + '" onclick="heatJump(\'' + ds + '\')"></div>';
     }
     html = '<div style="display:grid;grid-template-columns:repeat(7,' + size + 'px);gap:' + gap + 'px;justify-content:center">' + cellsHtml + '</div>';
     labelText = y + '年' + (m + 1) + '月 · ' + (heatMonthOffset === 0 ? '本月 ' : '') + fmtMin(monthSec);
@@ -2494,6 +2495,11 @@ function renderHeat() {
   }
   wrap.innerHTML = html;
   document.getElementById('heat-label').textContent = labelText;
+  // 选中恢复：翻月/切模式重渲染后，选中日若在当前视图内则重新圈上
+  if (heatSel) {
+    const el = wrap.querySelector('.hmc[data-ds="' + heatSel + '"]');
+    if (el) el.classList.add('sel');
+  }
   const legend = document.getElementById('heat-legend');
   if (legend && !legend.childElementCount) {
     legend.innerHTML = HEAT_COLORS.map(c => '<div style="width:12px;height:12px;border-radius:3px;background:' + c + '"></div>').join('');
@@ -2510,9 +2516,17 @@ function shiftHeatMonth(delta) {
   heatMonthOffset = next;
   renderHeat();
 }
+let heatSel = null; // 当前选中日（点击圈高亮，再点同格取消）
 function heatJump(ds) {
   const sec = getHeatData()[ds] || 0;
   toast(ds.slice(5).replace('-', '/') + ' · ' + (sec ? fmtMin(sec) : '无记录'), 'success');
+  // 点击选中高亮环（参考积分面板样式）：同格再点=取消
+  const wrap = document.getElementById('heat-wrap');
+  const cell = wrap ? wrap.querySelector('.hmc[data-ds="' + ds + '"]') : null;
+  if (!cell) return;
+  const was = cell.classList.contains('sel');
+  wrap.querySelectorAll('.hmc.sel').forEach(c => c.classList.remove('sel'));
+  if (!was) { cell.classList.add('sel'); heatSel = ds; } else heatSel = null;
 }
 
 function getStatsData(period) {

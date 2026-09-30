@@ -1,6 +1,6 @@
 // 工作台 Service Worker：页面骨架缓存（秒开 + 离线可用）
 // 数据层（localStorage + 云同步）不经手：跨源请求与非 GET 全部直放
-const CACHE = 'wb-shell-v5';
+const CACHE = 'wb-shell-v6';
 const CORE = ['./', './index.html', './admin.html', './manifest.json', './icon.png', './icon-192.png', './icon-512.png', './apple-icon.png', './favicon.ico'];
 
 self.addEventListener('install', e => {
