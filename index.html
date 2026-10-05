@@ -1363,6 +1363,14 @@ function toggleAdj() {
 // 补时按钮：计时中直接平移起点；未计时直接把时间写入今日记录（立即落盘+统计同步）
 function adjustTimer(min) {
   const delta = min * 60;
+  // 物理上限防线（2026-10-05「一天25小时」bug 修复）：今日已记录+进行中+本次增量不得超过 24h
+  if (delta > 0) {
+    const daySec = getTodaySegments().reduce((s, x) => s + x.duration, 0) + (timerRunning ? liveElapsedSec() : 0);
+    if (daySec + delta >= 24 * 3600) {
+      toast(`加不动了：今日已 ${fmtMin(daySec)}，一天上限 24 小时（还可加 ${fmtMin(Math.max(0, 24 * 3600 - daySec))}）`, 'warn');
+      return;
+    }
+  }
   if (timerRunning) {
     timerStart -= delta * 1000; // +10分 => 起点前移10分钟
     if (refNow() - timerStart < 0) timerStart = refNow();
