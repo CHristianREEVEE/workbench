@@ -575,6 +575,8 @@
   @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
   .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
   .modal-close { background: none; border: none; color: var(--text-dim); font-size: 24px; cursor: pointer; min-width:44px; min-height:44px; }
+  .chart-nav { background: var(--card); border: 1px solid var(--border-strong); color: var(--text); border-radius: 8px; min-width: 36px; min-height: 36px; font-size: 18px; cursor: pointer; font-weight: 700; padding: 0 10px; }
+  .chart-nav:active { transform: scale(0.94); }
   .ce { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 18px; padding: 6px 10px; cursor: pointer; }
   .ce.sel { border-color: var(--accent); background: var(--accent-glow); }
   .cm { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text-mid); font-size: 14px; padding: 10px 0; cursor: pointer; }
@@ -783,7 +785,7 @@
       <div class="timer-adjust">
         <button class="ta-btn ta-open" id="ta-open" onclick="toggleAdj()">± 调时</button>
         <div class="adj-panel" id="adj-panel" hidden>
-          <span class="adj-label">选择要加减的时长（防误触收纳，选完再点「± 调时」收起）</span>
+          <span class="adj-label">加减只对正在计时的当前段生效，结束后归档的记录不可调</span>
           <button class="ta-btn" onclick="adjustTimer(-60)">−1时</button>
           <button class="ta-btn" onclick="adjustTimer(-10)">−10分</button>
           <button class="ta-btn" onclick="adjustTimer(-1)">−1分</button>
@@ -950,7 +952,14 @@
 <!-- 图表弹窗 -->
 <div class="modal-overlay" id="chart-overlay" onclick="if(event.target===this)closeChartModal()">
   <div class="modal">
-    <div class="modal-header"><b style="font-size:15px" id="chart-title">各科学习量</b><button class="modal-close" style="font-size:20px" onclick="closeChartModal()">×</button></div>
+    <div class="modal-header">
+      <b style="font-size:15px" id="chart-title">各科学习量</b>
+      <span style="display:flex;gap:4px">
+        <button class="chart-nav" id="chart-prev" onclick="shiftChartPeriod(-1)">‹</button>
+        <button class="chart-nav" id="chart-next" onclick="shiftChartPeriod(1)">›</button>
+      </span>
+      <button class="modal-close" style="font-size:20px" onclick="closeChartModal()">×</button>
+    </div>
     <div id="chart-svg-wrap"></div>
     <div style="text-align:center;font-size:11px;color:var(--text-mid);margin-top:12px">截图可直接分享</div>
   </div>
@@ -1360,64 +1369,30 @@ function toggleAdj() {
   p.hidden = !p.hidden;
   document.getElementById('ta-open').classList.toggle('on', !p.hidden);
 }
-// 补时按钮：计时中直接平移起点；未计时直接把时间写入今日记录（立即落盘+统计同步）
+// 调时按钮（2026-10-05 v3：只作用于正在计时/暂停中的当前段；结束归档的记录锁死不可调）
 function adjustTimer(min) {
   const delta = min * 60;
+  if (!timerRunning) {
+    toast('加减只对正在计时的当前段生效（暂停中也行），已结束归档的记录不可调整', 'warn');
+    return;
+  }
   // 物理上限防线（2026-10-05「一天25小时」bug 修复）：今日已记录+进行中+本次增量不得超过 24h
   if (delta > 0) {
-    const daySec = getTodaySegments().reduce((s, x) => s + x.duration, 0) + (timerRunning ? liveElapsedSec() : 0);
+    const daySec = getTodaySegments().reduce((s, x) => s + x.duration, 0) + liveElapsedSec();
     if (daySec + delta >= 24 * 3600) {
       toast(`加不动了：今日已 ${fmtMin(daySec)}，一天上限 24 小时（还可加 ${fmtMin(Math.max(0, 24 * 3600 - daySec))}）`, 'warn');
       return;
     }
   }
-  if (timerRunning) {
-    timerStart -= delta * 1000; // +10分 => 起点前移10分钟
-    if (refNow() - timerStart < 0) timerStart = refNow();
-    DB.set('timer_state', { running: true, start: timerStart, paused: timerPaused, pausedAt: timerPaused ? pausedAt : undefined });
-    lastShownSec = -1;
-    // 大表+今日统计必须当场刷新（暂停中 updateTimerDisplay 会提前返回，旧版只弹 toast，屏幕纹丝不动=不知道剪到啥程度）
-    document.getElementById('timer-display').textContent = fmtTime(liveElapsedSec());
-    updateTimerCount();
-    if (statTab === 'day') renderStats();
-    toast(`已${min > 0 ? '加' : '减'} ${Math.abs(min)} 分钟，本段 ${fmtMin(liveElapsedSec())}`, 'success');
-  } else {
-    timerAdjustSec = 0; // 旧版挂起的补时不再等待"开始"，直接走下面入账
-    const segs = getTodaySegments();
-    if (min > 0) {
-      const last = segs[segs.length - 1];
-      if (last && last.manual && Date.now() - last.end < 10 * 60 * 1000) {
-        // 10分钟内连续补点合并成一段，避免刷出十几条1分钟碎片
-        last.duration += delta;
-        last.end = Date.now();
-        last.start = last.end - last.duration * 1000;
-      } else {
-        const end = Date.now();
-        segs.push({ start: end - delta * 1000, end: end, duration: delta, manual: true, subject: timerSubject });
-      }
-      saveTodaySegments(segs);
-      document.getElementById('timer-display').textContent = '00:00:00';
-      lastShownSec = -1;
-      updateTimerCount();  // "今日 X 段 · 共 X" 立即刷新
-      renderStats();       // 底部日/周/月统计立即刷新
-      toast(`已补记 ${fmtMin(min * 60)}，今日统计已更新`, 'success');
-    } else {
-      if (!segs.length) { toast('今日还没有记录可减', 'warn'); return; }
-      const last = segs[segs.length - 1];
-      last.duration = Math.max(0, last.duration + delta);
-      if (last.duration < 60) { segs.pop(); toast('该段已不足1分钟，已删除', 'warn'); }
-      else {
-        last.end = Date.now();
-        last.start = last.end - last.duration * 1000;
-      }
-      saveTodaySegments(segs);
-      updateTimerCount();
-      renderStats();
-      const daySec = segs.reduce((s, x) => s + x.duration, 0);
-      if (last && last.duration >= 60) toast(`已减 ${Math.abs(min)} 分钟，今日共 ${fmtMin(daySec)}`, 'success');
-    }
-    updateAdjustUI();
-  }
+  timerStart -= delta * 1000; // +10分 => 起点前移10分钟
+  if (refNow() - timerStart < 0) timerStart = refNow();
+  DB.set('timer_state', { running: true, start: timerStart, paused: timerPaused, pausedAt: timerPaused ? pausedAt : undefined });
+  lastShownSec = -1;
+  // 大表+今日统计必须当场刷新（暂停中 updateTimerDisplay 会提前返回，旧版只弹 toast，屏幕纹丝不动=不知道剪到啥程度）
+  document.getElementById('timer-display').textContent = fmtTime(liveElapsedSec());
+  updateTimerCount();
+  if (statTab === 'day') renderStats();
+  toast(`已${min > 0 ? '加' : '减'} ${Math.abs(min)} 分钟，本段 ${fmtMin(liveElapsedSec())}`, 'success');
 }
 function updateAdjustUI() {
   const el = document.getElementById('ta-pending');
@@ -2416,11 +2391,26 @@ function buildPieSVG(cats) {
     ${sectors}${labels}${leaders}${legend}
   </svg>`;
 }
+let chartType = 'bar'; // 记住当前图表类型，翻周期后原样重画
 function showTaskChart(type) {
+  chartType = type;
+  renderChart();
+  document.getElementById('chart-overlay').classList.add('show');
+}
+// 图表弹窗内直接翻周期（2026-10-05 TA 需求：柱状图/饼图来回切换前后天查看，复用主页 statsDay/Week/MonthOffset 机制，主页统计联动刷新）
+function shiftChartPeriod(delta) {
+  if (statTab === 'day') shiftStatsDay(delta);
+  else if (statTab === 'week') shiftStatsWeek(delta);
+  else shiftStatsMonth(delta);
+  renderChart();
+}
+function renderChart() {
   const cats = getCategoryStats();
   document.getElementById('chart-title').textContent = '各科学习时长 · ' + chartPeriodLabel();
-  document.getElementById('chart-svg-wrap').innerHTML = type === 'pie' ? buildPieSVG(cats) : buildBarSVG(cats);
-  document.getElementById('chart-overlay').classList.add('show');
+  document.getElementById('chart-svg-wrap').innerHTML = chartType === 'pie' ? buildPieSVG(cats) : buildBarSVG(cats);
+  // 到达当前周期（今日/本周/本月）后右箭头隐藏——不能翻到未来
+  const atNow = (statTab === 'day' && statsDayOffset === 0) || (statTab === 'week' && statsWeekOffset === 0) || (statTab === 'month' && statsMonthOffset === 0);
+  document.getElementById('chart-next').style.visibility = atNow ? 'hidden' : 'visible';
 }
 function closeChartModal() { document.getElementById('chart-overlay').classList.remove('show'); }
 
