@@ -1344,6 +1344,7 @@ function updateTimerDisplay() {
 }
 // 补时按钮：计时中直接平移起点；未计时直接把时间写入今日记录（立即落盘+统计同步）
 function adjustTimer(min) {
+  if (!confirm(`确定${min > 0 ? '加' : '减'} ${Math.abs(min)} 分钟吗？`)) return; // 防误触确认（2026-10-05 TA 立：所有加减都要弹窗确认）
   const delta = min * 60;
   if (timerRunning) {
     timerStart -= delta * 1000; // +10分 => 起点前移10分钟
