@@ -253,6 +253,13 @@
   @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
   .timer-btns { display: flex; gap: 10px; justify-content: center; }
   .timer-adjust { display: flex; gap: 5px; justify-content: center; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+  .adj-panel {
+    display: flex; gap: 5px; justify-content: center; align-items: center; flex-wrap: wrap;
+    width: 100%; padding: 8px; margin-top: 6px;
+    background: var(--bg); border: 1px dashed var(--border-strong); border-radius: 10px;
+  }
+  .adj-panel[hidden] { display: none; }
+  .adj-label { font-size: 12px; color: var(--text-mid); width: 100%; text-align: center; }
   .ta-btn {
     background: var(--card);
     color: var(--text);
@@ -265,6 +272,8 @@
     transition: all .2s;
   }
   .ta-btn:active { transform: scale(0.94); }
+  .ta-open { padding: 6px 16px; font-size: 13px; }
+  .ta-open.on { background: var(--card); border-color: #c07f00; color: #c07f00; }
   .ta-pending { text-align: center; margin-top: 6px; font-size: 13px; color: var(--orange); font-weight: 600; min-height: 18px; }
   /* ===== Module 3 & 4: Checklist ===== */
   .task-group-label {
@@ -772,13 +781,16 @@
         <button class="btn btn-red" id="timer-stop" onclick="stopTimer()" disabled data-cfg-btn="timer_stop">■ 结束计时</button>
       </div>
       <div class="timer-adjust">
-        <span style="font-size:13px;color:var(--text-mid)">补时</span>
-        <button class="ta-btn" onclick="adjustTimer(-60)">−1时</button>
-        <button class="ta-btn" onclick="adjustTimer(-10)">−10分</button>
-        <button class="ta-btn" onclick="adjustTimer(-1)">−1分</button>
-        <button class="ta-btn" onclick="adjustTimer(1)">+1分</button>
-        <button class="ta-btn" onclick="adjustTimer(10)">+10分</button>
-        <button class="ta-btn" onclick="adjustTimer(60)">+1时</button>
+        <button class="ta-btn ta-open" id="ta-open" onclick="toggleAdj()">± 调时</button>
+        <div class="adj-panel" id="adj-panel" hidden>
+          <span class="adj-label">选择要加减的时长（防误触收纳，选完再点「± 调时」收起）</span>
+          <button class="ta-btn" onclick="adjustTimer(-60)">−1时</button>
+          <button class="ta-btn" onclick="adjustTimer(-10)">−10分</button>
+          <button class="ta-btn" onclick="adjustTimer(-1)">−1分</button>
+          <button class="ta-btn" onclick="adjustTimer(1)">+1分</button>
+          <button class="ta-btn" onclick="adjustTimer(10)">+10分</button>
+          <button class="ta-btn" onclick="adjustTimer(60)">+1时</button>
+        </div>
       </div>
       <div id="ta-pending" class="ta-pending"></div>
       <div style="text-align:center;margin-top:8px;font-size:14px;color:var(--text-mid)" id="timer-count">今日 0 段 · 共 0 分钟</div>
@@ -1342,9 +1354,14 @@ function updateTimerDisplay() {
   document.getElementById('timer-display').textContent = fmtTime(elapsed);
   if (elapsed !== lastShownSec) { lastShownSec = elapsed; updateTimerCount(); if (statTab === 'day') renderStats(); } // 今日统计实时同步
 }
+// 调时收纳面板（2026-10-05 v2：主界面只留一个入口按钮，档位藏二级面板防误触，替代连环 confirm）
+function toggleAdj() {
+  const p = document.getElementById('adj-panel');
+  p.hidden = !p.hidden;
+  document.getElementById('ta-open').classList.toggle('on', !p.hidden);
+}
 // 补时按钮：计时中直接平移起点；未计时直接把时间写入今日记录（立即落盘+统计同步）
 function adjustTimer(min) {
-  if (!confirm(`确定${min > 0 ? '加' : '减'} ${Math.abs(min)} 分钟吗？`)) return; // 防误触确认（2026-10-05 TA 立：所有加减都要弹窗确认）
   const delta = min * 60;
   if (timerRunning) {
     timerStart -= delta * 1000; // +10分 => 起点前移10分钟
