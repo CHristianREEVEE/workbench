@@ -749,6 +749,7 @@
         <button class="checkin-btn" id="checkin-btn" onclick="toggleCheckin()" data-cfg-btn="checkin">今日打卡</button>
         <div class="checkin-count">累计打卡 <b id="checkin-total">0</b> 天</div>
         <div class="checkin-count">总计学习时长 <b id="study-total">0</b></div>
+        <div class="checkin-count">网课时长 <b id="course-total">0</b></div>
         <div class="streak-row">
           <div class="streak-item">
             <div class="label">当前连续</div>
@@ -802,7 +803,10 @@
   <!-- 模块3：学习数据统计（直接展示） -->
   <section>
     <div class="card">
-      <div class="card-title" data-cfg-title="stats">📊 学习数据统计</div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="card-title" data-cfg-title="stats" style="flex:1">📊 学习数据统计</div>
+        <button class="btn btn-sm btn-outline" onclick="addCourseTime()" title="添加网课时长（只进总时长，不落当天）" style="min-width:34px;padding:3px 9px;margin-bottom:6px">✏️</button>
+      </div>
       <div class="tab-row" id="stats-tab-row">
         <div class="tab active" onclick="switchStatTab('day')" data-cfg-stattab="day">日统计</div>
         <div class="tab" onclick="switchStatTab('week')" data-cfg-stattab="week">周统计</div>
@@ -1410,7 +1414,7 @@ function updateTimerCount() {
   document.getElementById('timer-count').textContent = fmt.replace('{n}',segs.length).replace('{m}',fmtDual(totalSec)).replace('分钟 分钟', '分钟');
   updateRecordBadge();
 }
-// 总计学习时长：全期累计（口径与统计一致，manual_time 覆盖优先）
+// 总计学习时长：全期累计（口径与统计一致，manual_time 覆盖优先）+ 网课存量（不挂日期，只进总数）
 function updateStudyTotal() {
   const data = DB.get('timer_segments', {});
   const overrides = DB.get('manual_time', {}) || {};
@@ -1420,6 +1424,7 @@ function updateStudyTotal() {
     if (overrides[d] !== undefined) totalSec += overrides[d] * 60;
     else (data[d] || []).forEach(seg => { totalSec += seg.duration; });
   });
+  totalSec += (DB.get('course_time', 0) || 0) * 60;   // 网课存量：不落任何一天，热力图/日周月统计/最长纪录均不受影响
   const el = document.getElementById('study-total');
   if (!el) return;
   // 小时正常字体，括号分钟缩小变细（.min-sub）
@@ -1427,6 +1432,34 @@ function updateStudyTotal() {
   el.innerHTML = h >= 1
     ? h.toFixed(1) + '小时<span class="min-sub">（' + m + '分钟）</span>'
     : m + '分钟';
+  updateCourseTotal();
+}
+// 网课时长（存量）：历史看网课未按日记录的学习时间，只计入总学习时长
+function updateCourseTotal() {
+  const el = document.getElementById('course-total');
+  if (!el) return;
+  const min = DB.get('course_time', 0) || 0;
+  const h = min / 60, m = Math.round(min);
+  el.innerHTML = h >= 1
+    ? h.toFixed(1) + '小时<span class="min-sub">（' + m + '分钟）</span>'
+    : m + '分钟';
+}
+// ✏️ 添加网课时长：纯数字=小时（可小数）；带「分钟/分」按分钟；负数=扣减。只进总时长，不落当天
+function addCourseTime() {
+  const s = prompt('添加网课时长（只计入总学习时长，不记到任何一天）\n纯数字=小时（可小数），如 86.5；输入「90分钟」按分钟；负数=扣减', '');
+  if (s === null) return;
+  const t = s.trim().toLowerCase().replace(/，/g, '');
+  if (!t) return;
+  let isMin = false, num = t;
+  if (/(分钟|分|m|min)$/.test(num)) { isMin = true; num = num.replace(/(分钟|分|m|min)$/, ''); }
+  else if (/(小时|时|h|hr|hour)$/.test(num)) { num = num.replace(/(小时|时|h|hr|hour)$/, ''); }
+  const v = parseFloat(num);
+  if (isNaN(v) || !isFinite(v)) { toast('⚠️ 没认出这个数'); return; }
+  const delta = isMin ? v : v * 60;
+  const cur = DB.get('course_time', 0) || 0;
+  DB.set('course_time', Math.round((cur + delta) * 10) / 10);
+  updateStudyTotal();
+  toast('✏️ 网课时长 ' + (delta >= 0 ? '+' : '−') + fmtMin(Math.abs(delta) * 60) + '，已计入总时长');
 }
 // 历史最长纪录：全期单日学习时长之最；今天刷新纪录时高亮
 function fmtRec(s) { return fmtMin(s); }
