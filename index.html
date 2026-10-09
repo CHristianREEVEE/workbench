@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- wb-fix 2026-10-09: cancel-checkin-sync (取消打卡被云同步并集复活修复) -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -1063,8 +1064,12 @@ const SYNC = {
     const d = this.dirty; this.dirty = {};
     if (!Object.keys(d).length) return;
     try {
-      await fetch(this.url + 'sync?k=' + this.key, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) });
-    } catch (e) { for (const k in d) this.dirty[k] = d[k]; }  // 失败回滚待重试
+      // mode=replace：用户操作产生的最新状态，数组类直接替换云端（否则服务端并集合并会让"取消打卡"等删除操作永不生效）
+      await fetch(this.url + 'sync?k=' + this.key + '&mode=replace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) });
+    } catch (e) {
+      for (const k in d) this.dirty[k] = d[k];
+      this.timer = setTimeout(() => this.push(), 15000);  // 失败回滚+重排重试（原版回滚后无重试，数据会卡死到下次操作）
+    }
   },
   async pushAll() {   // 全量对账：把本地所有数据整体推上云端（拉取合并后调用，两边收敛一致）
     const payload = {};
@@ -1094,6 +1099,17 @@ const SYNC = {
         let lv; try { lv = lraw !== undefined ? JSON.parse(lraw) : undefined; } catch { lv = undefined; }
         const s_cv = JSON.stringify(cv), s_lv = JSON.stringify(lv);
         if (s_cv === s_lv) continue;
+        // checkins（打卡记录）特殊合并：云端为准——本地删掉的日期不再被并集复活（取消打卡从此生效）；
+        // 仅保留本地独有且晚于云端最新日期的项（刚打卡还没来得及推云的场景不丢新卡）
+        if (k === 'checkins' && Array.isArray(cv) && Array.isArray(lv)) {
+          const maxCv = cv.reduce((m, x) => (typeof x === 'string' && x > m ? x : m), '');
+          const out = cv.slice();
+          lv.forEach(x => { if (typeof x === 'string' && x > maxCv && !out.includes(x)) out.push(x); });
+          out.sort();
+          localStorage.setItem('wb_checkins', JSON.stringify(out));
+          changed++;
+          continue;
+        }
         // workbench_config（自定义板块/总页数）：customGroups 按内容并集，数字取大，其余本地优先
         if (k === 'workbench_config') {
           let mergedCfg;
