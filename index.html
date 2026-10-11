@@ -1380,7 +1380,7 @@ function updateTimerDisplay() {
   if (!timerRunning || timerPaused) return; // 未计时/暂停中别动显示：暂停时表定格在暂停时刻
   const elapsed = liveElapsedSec();
   document.getElementById('timer-display').textContent = fmtTime(elapsed);
-  if (elapsed !== lastShownSec) { lastShownSec = elapsed; updateTimerCount(); if (statTab === 'day') renderStats(); } // 今日统计实时同步
+  if (elapsed !== lastShownSec) { lastShownSec = elapsed; updateTimerCount(); updateStudyTotal(); if (statTab === 'day') renderStats(); } // 今日统计+总计学习时长实时同步
 }
 // 调时收纳面板（2026-10-05 v2：主界面只留一个入口按钮，档位藏二级面板防误触，替代连环 confirm）
 function toggleAdj() {
@@ -1410,6 +1410,7 @@ function adjustTimer(min) {
   // 大表+今日统计必须当场刷新（暂停中 updateTimerDisplay 会提前返回，旧版只弹 toast，屏幕纹丝不动=不知道剪到啥程度）
   document.getElementById('timer-display').textContent = fmtTime(liveElapsedSec());
   updateTimerCount();
+  updateStudyTotal(); // 调时后总计当场跟着动
   if (statTab === 'day') renderStats();
   toast(`已${min > 0 ? '加' : '减'} ${Math.abs(min)} 分钟，本段 ${fmtMin(liveElapsedSec())}`, 'success');
 }
@@ -1440,13 +1441,15 @@ function updateStudyTotal() {
     else (data[d] || []).forEach(seg => { totalSec += seg.duration; });
   });
   totalSec += (DB.get('course_time', 0) || 0) * 60;   // 网课存量：不落任何一天，热力图/日周月统计/最长纪录均不受影响
+  if (timerRunning) totalSec += liveElapsedSec(); // 进行中的时间实时计入总数（暂停不涨）
   const el = document.getElementById('study-total');
   if (!el) return;
   // 小时正常字体，括号分钟缩小变细（.min-sub）
   const h = totalSec / 3600, m = Math.round(totalSec / 60);
-  el.innerHTML = h >= 1
+  const html = h >= 1
     ? h.toFixed(1) + '小时<span class="min-sub">（' + m + '分钟）</span>'
     : m + '分钟';
+  if (el.dataset.lastHtml !== html) { el.innerHTML = html; el.dataset.lastHtml = html; } // 秒级tick只在实际变化时写DOM
   updateCourseTotal();
 }
 // 网课时长（存量）：历史看网课未按日记录的学习时间，只计入总学习时长
