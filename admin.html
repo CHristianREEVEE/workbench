@@ -497,6 +497,7 @@ function renderOverview(){
     if(overrides[d]!==undefined){totalSec+=overrides[d]*60}
     else{segs.forEach(s=>{totalSec+=s.duration})}
   }
+  totalSec += (DB.get('course_time',0)||0)*60;   // 网课存量并入（2026-10-19：与首页口径统一，含 870 分钟网课）
   let totalTaskDone=0;
   for(const k in counts)totalTaskDone+=counts[k]||0;
   const mathDone=counts[1]||0;
