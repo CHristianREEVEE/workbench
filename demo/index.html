@@ -1,16 +1,19 @@
 <!DOCTYPE html>
+<!-- wb-fix 2026-10-09: cancel-checkin-sync (取消打卡被云同步并集复活修复) -->
 <html lang="zh-CN">
 <head>
+<script>window.WB_DEMO=true;/* 演示版：云同步禁用+localStorage 独立前缀，与正式版数据完全隔离 */</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#1a1721">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="工作台 Demo">
+<meta name="apple-mobile-web-app-title" content="南浊工作台">
 <link rel="apple-touch-icon" href="apple-icon.png">
 <link rel="icon" href="favicon.ico" type="image/x-icon">
 <link rel="icon" href="icon.png" type="image/png" sizes="128x128">
-<title>个人工作台 · 试验版</title>
+<link rel="manifest" href="manifest.json">
+<title>南浊 · 个人工作台</title>
 <style>
 /* 禁双击放大（保留捏合缩放与滚动） */
 *{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
@@ -68,6 +71,9 @@
     transition: transform .15s ease, color .15s ease;
   }
   .wallpaper-btn:active { transform: scale(0.92); color: var(--text); }
+  header .wallpaper-btn:not(#refresh-btn) { right: 60px; }  /* 👕 让位：🔄 刷新键居最右 */
+  .wallpaper-btn.spinning { animation: wbspin .8s linear infinite; color: var(--accent, #8b9cf7); }
+  @keyframes wbspin { to { transform: rotate(360deg); } }
   .wp-veil-row { display: flex; align-items: center; gap: 12px; margin: 8px 0 2px; }
   .wp-veil-row input[type=range] { flex: 1; accent-color: var(--accent); }
   .wp-veil-row .wp-veil-val { font-size: 13px; color: var(--text-mid); min-width: 38px; text-align: right; }
@@ -249,6 +255,13 @@
   @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
   .timer-btns { display: flex; gap: 10px; justify-content: center; }
   .timer-adjust { display: flex; gap: 5px; justify-content: center; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+  .adj-panel {
+    display: flex; gap: 5px; justify-content: center; align-items: center; flex-wrap: wrap;
+    width: 100%; padding: 8px; margin-top: 6px;
+    background: var(--bg); border: 1px dashed var(--border-strong); border-radius: 10px;
+  }
+  .adj-panel[hidden] { display: none; }
+  .adj-label { font-size: 12px; color: var(--text-mid); width: 100%; text-align: center; }
   .ta-btn {
     background: var(--card);
     color: var(--text);
@@ -261,6 +274,8 @@
     transition: all .2s;
   }
   .ta-btn:active { transform: scale(0.94); }
+  .ta-open { padding: 6px 16px; font-size: 13px; }
+  .ta-open.on { background: var(--card); border-color: #c07f00; color: #c07f00; }
   .ta-pending { text-align: center; margin-top: 6px; font-size: 13px; color: var(--orange); font-weight: 600; min-height: 18px; }
   /* ===== Module 3 & 4: Checklist ===== */
   .task-group-label {
@@ -562,6 +577,8 @@
   @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
   .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
   .modal-close { background: none; border: none; color: var(--text-dim); font-size: 24px; cursor: pointer; min-width:44px; min-height:44px; }
+  .chart-nav { background: var(--card); border: 1px solid var(--border-strong); color: var(--text); border-radius: 8px; min-width: 36px; min-height: 36px; font-size: 18px; cursor: pointer; font-weight: 700; padding: 0 10px; }
+  .chart-nav:active { transform: scale(0.94); }
   .ce { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 18px; padding: 6px 10px; cursor: pointer; }
   .ce.sel { border-color: var(--accent); background: var(--accent-glow); }
   .cm { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text-mid); font-size: 14px; padding: 10px 0; cursor: pointer; }
@@ -570,6 +587,7 @@
   .hm-mode.sel { border-color: var(--accent); background: var(--accent-glow); color: var(--text); font-weight: 600; }
   .hmcol { display: flex; flex-direction: column; gap: 3px; }
   .hmc { width: 13px; height: 13px; border-radius: 3px; cursor: pointer; flex-shrink: 0; }
+  .hmc.sel { outline: 2px solid rgba(255,255,255,.92); outline-offset: 1px; } /* 点击选中高亮环（积分面板同族样式） */
   .hmwd { width: 12px; height: 13px; font-size: 9px; color: var(--text-dim); display: flex; align-items: center; justify-content: center; }
   .hmml { font-size: 9px; color: var(--text-dim); height: 12px; line-height: 12px; white-space: nowrap; overflow: visible; }
   .subj-chip { font-size: 12px; color: var(--text-mid); background: var(--bg-2); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; cursor: pointer; flex-shrink: 0; }
@@ -705,9 +723,10 @@
 <div class="wallpaper-layer" id="wallpaper-layer"></div>
 
 <header>
-  <div class="main-title">个人工作台 · 试验版</div>
+  <div class="main-title">南浊 · 个人工作台</div>
   <button class="wallpaper-btn" onclick="openWallpaperModal()" title="壁纸设置">👕</button>
   <button class="motto-edit-btn" onclick="openMottoModal()" title="修改格言" aria-label="修改格言"><span class="orb"></span></button>
+  <button class="wallpaper-btn" id="refresh-btn" onclick="refreshApp(this)" title="拉取云端最新数据并刷新" aria-label="刷新">🔄</button>
 </header>
 
 <div class="container">
@@ -754,10 +773,10 @@
       </div>
       <div id="subj-panel" class="subj-panel" style="display:none">
         <button class="subj-btn" data-s="" onclick="setSubject('')">未分类</button>
-        <button class="subj-btn" data-s="外语" onclick="setSubject('外语')">外语</button>
-        <button class="subj-btn" data-s="阅读" onclick="setSubject('阅读')">阅读</button>
-        <button class="subj-btn" data-s="练题" onclick="setSubject('练题')">练题</button>
-        <button class="subj-btn" data-s="笔记" onclick="setSubject('笔记')">笔记</button>
+        <button class="subj-btn" data-s="英语" onclick="setSubject('英语')">英语</button>
+        <button class="subj-btn" data-s="数学" onclick="setSubject('数学')">数学</button>
+        <button class="subj-btn" data-s="逻辑" onclick="setSubject('逻辑')">逻辑</button>
+        <button class="subj-btn" data-s="写作" onclick="setSubject('写作')">写作</button>
       </div>
       <div class="timer-display" id="timer-display">00:00:00</div>
       <div class="timer-btns">
@@ -766,12 +785,16 @@
         <button class="btn btn-red" id="timer-stop" onclick="stopTimer()" disabled data-cfg-btn="timer_stop">■ 结束计时</button>
       </div>
       <div class="timer-adjust">
-        <span style="font-size:13px;color:var(--text-mid)">补时</span>
-        <button class="ta-btn" onclick="adjustTimer(-10)">−10分</button>
-        <button class="ta-btn" onclick="adjustTimer(-1)">−1分</button>
-        <button class="ta-btn" onclick="adjustTimer(1)">+1分</button>
-        <button class="ta-btn" onclick="adjustTimer(10)">+10分</button>
-        <button class="ta-btn" onclick="adjustTimer(60)">+1时</button>
+        <button class="ta-btn ta-open" id="ta-open" onclick="toggleAdj()">± 调时</button>
+        <div class="adj-panel" id="adj-panel" hidden>
+          <span class="adj-label">加减只对正在计时的当前段生效，结束后归档的记录不可调</span>
+          <button class="ta-btn" onclick="adjustTimer(-60)">−1时</button>
+          <button class="ta-btn" onclick="adjustTimer(-10)">−10分</button>
+          <button class="ta-btn" onclick="adjustTimer(-1)">−1分</button>
+          <button class="ta-btn" onclick="adjustTimer(1)">+1分</button>
+          <button class="ta-btn" onclick="adjustTimer(10)">+10分</button>
+          <button class="ta-btn" onclick="adjustTimer(60)">+1时</button>
+        </div>
       </div>
       <div id="ta-pending" class="ta-pending"></div>
       <div style="text-align:center;margin-top:8px;font-size:14px;color:var(--text-mid)" id="timer-count">今日 0 段 · 共 0 分钟</div>
@@ -781,7 +804,10 @@
   <!-- 模块3：学习数据统计（直接展示） -->
   <section>
     <div class="card">
-      <div class="card-title" data-cfg-title="stats">📊 学习数据统计</div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="card-title" data-cfg-title="stats" style="flex:1">📊 学习数据统计</div>
+        <button class="btn btn-sm btn-outline" onclick="addCourseTime()" title="添加网课时长（只进总时长，不落当天）" style="min-width:34px;padding:3px 9px;margin-bottom:6px">✏️</button>
+      </div>
       <div class="tab-row" id="stats-tab-row">
         <div class="tab active" onclick="switchStatTab('day')" data-cfg-stattab="day">日统计</div>
         <div class="tab" onclick="switchStatTab('week')" data-cfg-stattab="week">周统计</div>
@@ -870,7 +896,7 @@
 <!-- 统计已移至首页直接展示 -->
 
 <div style="text-align:center;padding:16px 0 8px">
-  <a href="admin.html" style="font-size:12px;color:var(--text-dim);text-decoration:none;border-bottom:1px dashed var(--text-dim);opacity:0.6;transition:opacity .2s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">⚙️ 后台管理</a>
+  <a href="#" onclick="return false"  style="font-size:12px;color:var(--text-dim);text-decoration:none;border-bottom:1px dashed var(--text-dim);opacity:0.6;transition:opacity .2s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">⚙️ 后台管理</a>
 </div>
 
 <!-- 确认弹窗 -->
@@ -891,7 +917,7 @@
     <div style="font-size:12px;color:var(--text-mid);margin:-6px 0 14px">新书/新科目自己加，存在本机浏览器里</div>
     <div style="margin-bottom:12px">
       <div style="font-size:12px;color:var(--text-mid);margin-bottom:4px">主题（板块名，留空=待定；填已有的就归到一起）</div>
-      <input id="cg-topic" placeholder="如：技能学习 / 待定" style="width:100%;box-sizing:border-box;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:14px">
+      <input id="cg-topic" placeholder="如：考研 / 待定" style="width:100%;box-sizing:border-box;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:14px">
     </div>
     <div style="margin-bottom:12px">
       <div style="font-size:12px;color:var(--text-mid);margin-bottom:4px">名称（书名 / 科目）</div>
@@ -931,7 +957,14 @@
 <!-- 图表弹窗 -->
 <div class="modal-overlay" id="chart-overlay" onclick="if(event.target===this)closeChartModal()">
   <div class="modal">
-    <div class="modal-header"><b style="font-size:15px" id="chart-title">各科学习量</b><button class="modal-close" style="font-size:20px" onclick="closeChartModal()">×</button></div>
+    <div class="modal-header">
+      <b style="font-size:15px" id="chart-title">各科学习量</b>
+      <span style="display:flex;gap:4px">
+        <button class="chart-nav" id="chart-prev" onclick="shiftChartPeriod(-1)">‹</button>
+        <button class="chart-nav" id="chart-next" onclick="shiftChartPeriod(1)">›</button>
+      </span>
+      <button class="modal-close" style="font-size:20px" onclick="closeChartModal()">×</button>
+    </div>
     <div id="chart-svg-wrap"></div>
     <div style="text-align:center;font-size:11px;color:var(--text-mid);margin-top:12px">截图可直接分享</div>
   </div>
@@ -1011,42 +1044,50 @@
 // ====== Storage ======
 const DB = {
   get(key, def) {
-    try { const v = localStorage.getItem('wbx_' + key); return v ? JSON.parse(v) : def; }
+    try { const v = localStorage.getItem('dw_' + key); return v ? JSON.parse(v) : def; }
     catch { return def; }
   },
-  set(key, val) { localStorage.setItem('wbx_' + key, JSON.stringify(val)); }
+  set(key, val) { localStorage.setItem('dw_' + key, JSON.stringify(val)); }
 };
 
-// ====== 云同步层（demo 版已禁用，不连接任何服务器）======
+// ====== 云同步层（数据自动备份到 wb.reeve10001.top/wbsync）======
 const SYNC = {
-  key: 'wbx_demo_disabled',
-  url: '',  // demo 版已断开云同步
+  key: 'dw_sync_2026',
+  url: 'https://wb.reeve10001.top/wbsync/api/',
   dirty: {},      // 待推送的键
   timer: null,
   mark(key, val) {               // DB.set 后调用：记脏+防抖推送
+    if (window.WB_DEMO) return;
     this.dirty[key] = val;
     clearTimeout(this.timer);
     this.timer = setTimeout(() => this.push(), 2000);
   },
   async push() {
+    if (window.WB_DEMO) return;
     const d = this.dirty; this.dirty = {};
     if (!Object.keys(d).length) return;
     try {
-      await fetch(this.url + 'sync?k=' + this.key, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) });
-    } catch (e) { for (const k in d) this.dirty[k] = d[k]; }  // 失败回滚待重试
+      // mode=replace：用户操作产生的最新状态，数组类直接替换云端（否则服务端并集合并会让"取消打卡"等删除操作永不生效）
+      await fetch(this.url + 'sync?k=' + this.key + '&mode=replace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) });
+    } catch (e) {
+      for (const k in d) this.dirty[k] = d[k];
+      this.timer = setTimeout(() => this.push(), 15000);  // 失败回滚+重排重试（原版回滚后无重试，数据会卡死到下次操作）
+    }
   },
   async pushAll() {   // 全量对账：把本地所有数据整体推上云端（拉取合并后调用，两边收敛一致）
+    if (window.WB_DEMO) return;
     const payload = {};
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k.startsWith('wbx_')) { try { payload[k.slice(4)] = JSON.parse(localStorage.getItem(k)); } catch (e) {} }
+      if (k.startsWith('dw_')) { try { payload[k.slice(3)] = JSON.parse(localStorage.getItem(k)); } catch (e) {} }
     }
-    const cfgRaw = localStorage.getItem('wb_demo_config');
+    const cfgRaw = localStorage.getItem('dw_workbench_config');
     if (cfgRaw) { try { payload.workbench_config = JSON.parse(cfgRaw); } catch (e) {} }
     if (!Object.keys(payload).length) return;
     try { await fetch(this.url + 'sync?k=' + this.key, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); } catch (e) {}
   },
   async pull() {                 // 启动时拉云端全量，合并进本地
+    if (window.WB_DEMO) return false;
     try {
       const r = await fetch(this.url + 'all?k=' + this.key);
       const j = await r.json();
@@ -1054,8 +1095,8 @@ const SYNC = {
       const local = {};
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k.startsWith('wbx_')) local[k.slice(4)] = localStorage.getItem(k);
-        else if (k === 'wb_demo_config') local['wb_demo_config'] = localStorage.getItem(k);
+        if (k.startsWith('dw_')) local[k.slice(3)] = localStorage.getItem(k);
+        else if (k === 'dw_workbench_config') local['dw_workbench_config'] = localStorage.getItem(k);
       }
       let changed = 0;
       for (const k in j.data) {
@@ -1063,8 +1104,19 @@ const SYNC = {
         let lv; try { lv = lraw !== undefined ? JSON.parse(lraw) : undefined; } catch { lv = undefined; }
         const s_cv = JSON.stringify(cv), s_lv = JSON.stringify(lv);
         if (s_cv === s_lv) continue;
+        // checkins（打卡记录）特殊合并：云端为准——本地删掉的日期不再被并集复活（取消打卡从此生效）；
+        // 仅保留本地独有且晚于云端最新日期的项（刚打卡还没来得及推云的场景不丢新卡）
+        if (k === 'checkins' && Array.isArray(cv) && Array.isArray(lv)) {
+          const maxCv = cv.reduce((m, x) => (typeof x === 'string' && x > m ? x : m), '');
+          const out = cv.slice();
+          lv.forEach(x => { if (typeof x === 'string' && x > maxCv && !out.includes(x)) out.push(x); });
+          out.sort();
+          localStorage.setItem('dw_checkins', JSON.stringify(out));
+          changed++;
+          continue;
+        }
         // workbench_config（自定义板块/总页数）：customGroups 按内容并集，数字取大，其余本地优先
-        if (k === 'wb_demo_config') {
+        if (k === 'dw_workbench_config') {
           let mergedCfg;
           try { mergedCfg = lraw !== undefined ? JSON.parse(lraw) : {}; } catch { mergedCfg = {}; }
           for (const kk in cv) {
@@ -1081,7 +1133,7 @@ const SYNC = {
             else if (typeof a === 'number' && typeof b2 === 'number') mergedCfg[kk] = (kk === 'configVersion') ? Math.max(a, b2) : a; // 版本号取大；设置型数字（mathTotal/vocabTotal）云端优先——取大会让"改小"永不生效
             else if (b2 === undefined) mergedCfg[kk] = a;
           }
-          if (JSON.stringify(mergedCfg) !== s_lv) { localStorage.setItem('wb_demo_config', JSON.stringify(mergedCfg)); changed++; }
+          if (JSON.stringify(mergedCfg) !== s_lv) { localStorage.setItem('dw_workbench_config', JSON.stringify(mergedCfg)); changed++; }
           continue;
         }
         // 冲突策略：数字取大、数组按内容去重并集、对象按键合并、其他云端优先
@@ -1095,13 +1147,13 @@ const SYNC = {
           merged = { ...lv }; for (const k2 in cv) merged[k2] = (typeof cv[k2] === 'number' && typeof lv[k2] === 'number') ? Math.max(cv[k2], lv[k2]) : cv[k2];
         }
         else merged = cv;
-        localStorage.setItem('wb_' + k, JSON.stringify(merged));
+        localStorage.setItem('dw_' + k, JSON.stringify(merged));
         changed++;
       }
       // timer_state 清理：云端若存了损坏值（start 超范围）直接重置
-      const ts = localStorage.getItem('wbx_timer_state');
+      const ts = localStorage.getItem('dw_timer_state');
       if (ts) { try { const t = JSON.parse(ts); const lo = 1577836800000, hi = Date.now() + 60000;
-        if (t.start && (t.start < lo || t.start > hi)) { localStorage.setItem('wbx_timer_state', JSON.stringify({ running: false, start: 0 })); } } catch {} }
+        if (t.start && (t.start < lo || t.start > hi)) { localStorage.setItem('dw_timer_state', JSON.stringify({ running: false, start: 0 })); } } catch {} }
       return changed;
     } catch (e) { return false; }
   }
@@ -1333,54 +1385,39 @@ function updateTimerDisplay() {
   if (!timerRunning || timerPaused) return; // 未计时/暂停中别动显示：暂停时表定格在暂停时刻
   const elapsed = liveElapsedSec();
   document.getElementById('timer-display').textContent = fmtTime(elapsed);
-  if (elapsed !== lastShownSec) { lastShownSec = elapsed; updateTimerCount(); if (statTab === 'day') renderStats(); } // 今日统计实时同步
+  if (elapsed !== lastShownSec) { lastShownSec = elapsed; updateTimerCount(); updateStudyTotal(); if (statTab === 'day') renderStats(); } // 今日统计+总计学习时长实时同步
 }
-// 补时按钮：计时中直接平移起点；未计时直接把时间写入今日记录（立即落盘+统计同步）
+// 调时收纳面板（2026-10-05 v2：主界面只留一个入口按钮，档位藏二级面板防误触，替代连环 confirm）
+function toggleAdj() {
+  const p = document.getElementById('adj-panel');
+  p.hidden = !p.hidden;
+  document.getElementById('ta-open').classList.toggle('on', !p.hidden);
+}
+// 调时按钮（2026-10-05 v3：只作用于正在计时/暂停中的当前段；结束归档的记录锁死不可调）
 function adjustTimer(min) {
   const delta = min * 60;
-  if (timerRunning) {
-    timerStart -= delta * 1000; // +10分 => 起点前移10分钟
-    if (refNow() - timerStart < 0) timerStart = refNow();
-    DB.set('timer_state', { running: true, start: timerStart, paused: timerPaused, pausedAt: timerPaused ? pausedAt : undefined });
-    lastShownSec = -1;
-    if (!timerPaused) updateTimerDisplay();
-    toast(`已${min > 0 ? '加' : '减'} ${Math.abs(min)} 分钟`, 'success');
-  } else {
-    timerAdjustSec = 0; // 旧版挂起的补时不再等待"开始"，直接走下面入账
-    const segs = getTodaySegments();
-    if (min > 0) {
-      const last = segs[segs.length - 1];
-      if (last && last.manual && Date.now() - last.end < 10 * 60 * 1000) {
-        // 10分钟内连续补点合并成一段，避免刷出十几条1分钟碎片
-        last.duration += delta;
-        last.end = Date.now();
-        last.start = last.end - last.duration * 1000;
-      } else {
-        const end = Date.now();
-        segs.push({ start: end - delta * 1000, end: end, duration: delta, manual: true, subject: timerSubject });
-      }
-      saveTodaySegments(segs);
-      document.getElementById('timer-display').textContent = '00:00:00';
-      lastShownSec = -1;
-      updateTimerCount();  // "今日 X 段 · 共 X" 立即刷新
-      renderStats();       // 底部日/周/月统计立即刷新
-      toast(`已补记 ${fmtMin(min * 60)}，今日统计已更新`, 'success');
-    } else {
-      if (!segs.length) { toast('今日还没有记录可减', 'warn'); return; }
-      const last = segs[segs.length - 1];
-      last.duration = Math.max(0, last.duration + delta);
-      if (last.duration < 60) { segs.pop(); toast('该段已不足1分钟，已删除', 'warn'); }
-      else {
-        last.end = Date.now();
-        last.start = last.end - last.duration * 1000;
-      }
-      saveTodaySegments(segs);
-      updateTimerCount();
-      renderStats();
-      if (last && last.duration >= 60) toast(`已减 ${Math.abs(min)} 分钟`, 'success');
-    }
-    updateAdjustUI();
+  if (!timerRunning) {
+    toast('加减只对正在计时的当前段生效（暂停中也行），已结束归档的记录不可调整', 'warn');
+    return;
   }
+  // 物理上限防线（2026-10-05「一天25小时」bug 修复）：今日已记录+进行中+本次增量不得超过 24h
+  if (delta > 0) {
+    const daySec = getTodaySegments().reduce((s, x) => s + x.duration, 0) + liveElapsedSec();
+    if (daySec + delta >= 24 * 3600) {
+      toast(`加不动了：今日已 ${fmtMin(daySec)}，一天上限 24 小时（还可加 ${fmtMin(Math.max(0, 24 * 3600 - daySec))}）`, 'warn');
+      return;
+    }
+  }
+  timerStart -= delta * 1000; // +10分 => 起点前移10分钟
+  if (refNow() - timerStart < 0) timerStart = refNow();
+  DB.set('timer_state', { running: true, start: timerStart, paused: timerPaused, pausedAt: timerPaused ? pausedAt : undefined });
+  lastShownSec = -1;
+  // 大表+今日统计必须当场刷新（暂停中 updateTimerDisplay 会提前返回，旧版只弹 toast，屏幕纹丝不动=不知道剪到啥程度）
+  document.getElementById('timer-display').textContent = fmtTime(liveElapsedSec());
+  updateTimerCount();
+  updateStudyTotal(); // 调时后总计当场跟着动
+  if (statTab === 'day') renderStats();
+  toast(`已${min > 0 ? '加' : '减'} ${Math.abs(min)} 分钟，本段 ${fmtMin(liveElapsedSec())}`, 'success');
 }
 function updateAdjustUI() {
   const el = document.getElementById('ta-pending');
@@ -1398,7 +1435,7 @@ function updateTimerCount() {
   document.getElementById('timer-count').textContent = fmt.replace('{n}',segs.length).replace('{m}',fmtDual(totalSec)).replace('分钟 分钟', '分钟');
   updateRecordBadge();
 }
-// 总计学习时长：全期累计（口径与统计一致，manual_time 覆盖优先）
+// 总计学习时长：全期累计（口径与统计一致，manual_time 覆盖优先）+ 网课存量（不挂日期，只进总数）
 function updateStudyTotal() {
   const data = DB.get('timer_segments', {});
   const overrides = DB.get('manual_time', {}) || {};
@@ -1408,13 +1445,44 @@ function updateStudyTotal() {
     if (overrides[d] !== undefined) totalSec += overrides[d] * 60;
     else (data[d] || []).forEach(seg => { totalSec += seg.duration; });
   });
+  totalSec += (DB.get('course_time', 0) || 0) * 60;   // 网课存量：不落任何一天，热力图/日周月统计/最长纪录均不受影响
+  if (timerRunning) totalSec += liveElapsedSec(); // 进行中的时间实时计入总数（暂停不涨）
   const el = document.getElementById('study-total');
   if (!el) return;
   // 小时正常字体，括号分钟缩小变细（.min-sub）
   const h = totalSec / 3600, m = Math.round(totalSec / 60);
+  const html = h >= 1
+    ? h.toFixed(1) + '小时<span class="min-sub">（' + m + '分钟）</span>'
+    : m + '分钟';
+  if (el.dataset.lastHtml !== html) { el.innerHTML = html; el.dataset.lastHtml = html; } // 秒级tick只在实际变化时写DOM
+  updateCourseTotal();
+}
+// 网课时长（存量）：历史看网课未按日记录的学习时间，只计入总学习时长
+function updateCourseTotal() {
+  const el = document.getElementById('course-total');
+  if (!el) return;
+  const min = DB.get('course_time', 0) || 0;
+  const h = min / 60, m = Math.round(min);
   el.innerHTML = h >= 1
     ? h.toFixed(1) + '小时<span class="min-sub">（' + m + '分钟）</span>'
     : m + '分钟';
+}
+// ✏️ 添加网课时长：纯数字=小时（可小数）；带「分钟/分」按分钟；负数=扣减。只进总时长，不落当天
+function addCourseTime() {
+  const s = prompt('添加网课时长（只计入总学习时长，不记到任何一天）\n纯数字=小时（可小数），如 86.5；输入「90分钟」按分钟；负数=扣减', '');
+  if (s === null) return;
+  const t = s.trim().toLowerCase().replace(/，/g, '');
+  if (!t) return;
+  let isMin = false, num = t;
+  if (/(分钟|分|m|min)$/.test(num)) { isMin = true; num = num.replace(/(分钟|分|m|min)$/, ''); }
+  else if (/(小时|时|h|hr|hour)$/.test(num)) { num = num.replace(/(小时|时|h|hr|hour)$/, ''); }
+  const v = parseFloat(num);
+  if (isNaN(v) || !isFinite(v)) { toast('⚠️ 没认出这个数'); return; }
+  const delta = isMin ? v : v * 60;
+  const cur = DB.get('course_time', 0) || 0;
+  DB.set('course_time', Math.round((cur + delta) * 10) / 10);
+  updateStudyTotal();
+  toast('✏️ 网课时长 ' + (delta >= 0 ? '+' : '−') + fmtMin(Math.abs(delta) * 60) + '，已计入总时长');
 }
 // 历史最长纪录：全期单日学习时长之最；今天刷新纪录时高亮
 function fmtRec(s) { return fmtMin(s); }
@@ -1471,7 +1539,7 @@ window.addEventListener('pageshow', () => {
 
 // ====== Module 4: Study Tasks ======
 const defaultConfig={
-  mainTitle:"个人工作台 · 试验版",
+  mainTitle:"南浊 · 个人工作台",
   ruleText:"天行健，君子以自强不息",
   ruleText2:"大道五十，天衍四九，人遁其一",
   timeHint:"该休息啦，辛苦一天了 ❤️",
@@ -1482,21 +1550,21 @@ const defaultConfig={
   statTabs:{day:"日统计",week:"周统计",month:"月统计"},
   statRowLabels:{daily_total:"当日总时长",seg_count:"学习段数",seg_detail:"分段明细",no_data:"今日暂无记录",week_total:"本周总时长",daily_avg:"日均时长",checkin_days:"打卡天数",study_days:"学习天数",trend_title:"时长趋势",month_total:"月度总时长",week_trend:"周度趋势",minute_suffix:"分"},
   taskGroups:[
-    {label:'示例·学习',icon:'📖',items:[
-      {cat:'词汇练习',time:'每日记录',desc:'',isVocab:true},
-      {cat:'考点闯关',time:'1考点/天',desc:'',isMath:true},
-      {cat:'阅读理解',time:'每日',desc:''},
-      {cat:'笔记',time:'每日',desc:''},
+    {label:'考研',icon:'📖',items:[
+      {cat:'英二闪背单词',time:'每日记录',desc:'',isVocab:true},
+      {cat:'数学',time:'1考点/天',desc:'',isMath:true},
+      {cat:'逻辑',time:'每日',desc:''},
+      {cat:'写作',time:'每日',desc:''},
     ]},
     
   ],
-  mathTotal:50,
-  vocabTotal:100,
+  mathTotal:76,
+  vocabTotal:427,
   configVersion:4
 };
 function loadConfig(){
   try{
-    const v=localStorage.getItem('wb_demo_config');
+    const v=localStorage.getItem('dw_workbench_config');
     if(!v) return JSON.parse(JSON.stringify(defaultConfig));
     const saved=JSON.parse(v);
     // Force-refresh tabs and cardTitles when config version changes
@@ -1511,7 +1579,7 @@ function loadConfig(){
       saved.configVersion=defaultConfig.configVersion;
       delete saved.restRuleText;
       delete saved.wheelCats;
-      localStorage.setItem('wb_demo_config',JSON.stringify(saved));
+      localStorage.setItem('dw_workbench_config',JSON.stringify(saved));
     }
     return saved;
   }catch(e){return JSON.parse(JSON.stringify(defaultConfig))}
@@ -1650,7 +1718,7 @@ function addMath(n) {
   counts[1] = (counts[1] || 0) + n;
   setTaskCounts(counts);
   setMathToday(getMathToday() + n);
-  toast(`考点闯关 +${n} ✅`, 'success');
+  toast(`数学 +${n} 考点 ✅`, 'success');
   renderTasks();
 }
 function addVocab(n) {
@@ -1665,12 +1733,12 @@ function addVocab(n) {
   counts[0] = (counts[0] || 0) + n;
   setTaskCounts(counts);
   setVocabToday(getVocabToday() + n);
-  toast(`词汇练习 +${n} 页 ✅`, 'success');
+  toast(`英二闪背 +${n} 页 ✅`, 'success');
   renderTasks();
 }
 function saveCfg() {
-  try { localStorage.setItem('wb_demo_config', JSON.stringify(CFG)); } catch (e) {}
-  SYNC.mark('wb_demo_config', CFG);
+  try { localStorage.setItem('dw_workbench_config', JSON.stringify(CFG)); } catch (e) {}
+  SYNC.mark('dw_workbench_config', CFG);
 }
 function promptVocabTotal() {
   const cur = CFG.vocabTotal;
@@ -1909,8 +1977,8 @@ function saveMotto() {
 }
 
 // ====== 壁纸设置（相册上传+半透明蒙层，存本机不上云）======
-function getWallpaper() { try { return JSON.parse(localStorage.getItem('wb_demo_wallpaper')) || {}; } catch (e) { return {}; } }
-function saveWallpaper(w) { try { localStorage.setItem('wb_demo_wallpaper', JSON.stringify(w)); } catch (e) { toast('壁纸保存失败（图片过大）', 'warn'); } }
+function getWallpaper() { try { return JSON.parse(localStorage.getItem('dw_workbench_wallpaper')) || {}; } catch (e) { return {}; } }
+function saveWallpaper(w) { try { localStorage.setItem('dw_workbench_wallpaper', JSON.stringify(w)); } catch (e) { toast('壁纸保存失败（图片过大）', 'warn'); } }
 function applyWallpaper() {
   const w = getWallpaper();
   const layer = document.getElementById('wallpaper-layer');
@@ -2144,7 +2212,7 @@ function resetWheel() {
   if (spinning) return;
   showConfirm('恢复这个转盘的默认选项？', () => {
     DB.set('wheel_' + wheelKey, null);
-    localStorage.removeItem('wb_wheel_' + wheelKey);
+    localStorage.removeItem('dw_wheel_' + wheelKey);
     wheelAngle = 0;
     drawWheel();
     toast('已重置 ✅', 'success');
@@ -2379,18 +2447,43 @@ function buildPieSVG(cats) {
     ${sectors}${labels}${leaders}${legend}
   </svg>`;
 }
+let chartType = 'bar'; // 记住当前图表类型，翻周期后原样重画
 function showTaskChart(type) {
+  chartType = type;
+  renderChart();
+  document.getElementById('chart-overlay').classList.add('show');
+}
+// 图表弹窗内直接翻周期（2026-10-05 TA 需求：柱状图/饼图来回切换前后天查看，复用主页 statsDay/Week/MonthOffset 机制，主页统计联动刷新）
+function shiftChartPeriod(delta) {
+  if (statTab === 'day') shiftStatsDay(delta);
+  else if (statTab === 'week') shiftStatsWeek(delta);
+  else shiftStatsMonth(delta);
+  renderChart();
+}
+function renderChart() {
   const cats = getCategoryStats();
   document.getElementById('chart-title').textContent = '各科学习时长 · ' + chartPeriodLabel();
-  document.getElementById('chart-svg-wrap').innerHTML = type === 'pie' ? buildPieSVG(cats) : buildBarSVG(cats);
-  document.getElementById('chart-overlay').classList.add('show');
+  document.getElementById('chart-svg-wrap').innerHTML = chartType === 'pie' ? buildPieSVG(cats) : buildBarSVG(cats);
+  // 到达当前周期（今日/本周/本月）后右箭头隐藏——不能翻到未来
+  const atNow = (statTab === 'day' && statsDayOffset === 0) || (statTab === 'week' && statsWeekOffset === 0) || (statTab === 'month' && statsMonthOffset === 0);
+  document.getElementById('chart-next').style.visibility = atNow ? 'hidden' : 'visible';
 }
 function closeChartModal() { document.getElementById('chart-overlay').classList.remove('show'); }
 
-// ====== 努力全景（学习热力图：月视图/总览，蓝色梯度，点格子跳当天统计）======
+// ====== 努力全景（学习热力图：月视图/总览，点格子跳当天统计）======
 let heatMode = 'month', heatMonthOffset = 0;
+// 与积分面板同款（TA 2026-09-30 拍板「和积分消耗一样简单明了」）：离散5档 + 按当前视图峰值线性四等分——
+// 峰值日独占最亮色一眼跳出；旧固定阈值版（<30分/<1时/<2时）长尾全挤同档，分位版/渐变版均废弃
 const HEAT_COLORS = ['rgba(255,255,255,0.07)', '#223a5e', '#33568c', '#4f7cff', '#8fb7ff'];
-function heatLevel(sec) { if (!sec) return 0; if (sec < 1800) return 1; if (sec < 3600) return 2; if (sec < 7200) return 3; return 4; }
+let heatMaxSec = 0; // 当前视图（本月或全期）活跃日最大时长，分档基准
+function heatLevel(sec) {
+  if (!sec || !heatMaxSec) return 0;
+  if (sec <= heatMaxSec * .25) return 1;
+  if (sec <= heatMaxSec * .5) return 2;
+  if (sec <= heatMaxSec * .75) return 3;
+  return 4;
+}
+function heatColor(sec) { return HEAT_COLORS[heatLevel(sec)]; }
 function getHeatData() {
   const data = getAllTimerData();
   const map = {};
@@ -2399,9 +2492,8 @@ function getHeatData() {
 }
 function pad2(n) { return String(n).padStart(2, '0'); }
 function heatCell(ds, sec, size) {
-  const lv = heatLevel(sec);
   const label = ds.slice(5).replace('-', '/') + ' ' + (sec ? fmtMin(sec) : '无记录');
-  return '<div class="hmc" style="width:' + size + 'px;height:' + size + 'px;background:' + HEAT_COLORS[lv] + '" title="' + label + '" onclick="heatJump(\'' + ds + '\')"></div>';
+  return '<div class="hmc" data-ds="' + ds + '" style="width:' + size + 'px;height:' + size + 'px;background:' + heatColor(sec) + '" title="' + label + '" onclick="heatJump(\'' + ds + '\')"></div>';
 }
 function setHeatMode(m) {
   heatMode = m;
@@ -2425,14 +2517,18 @@ function renderHeat() {
     const days = new Date(y, m + 1, 0).getDate();
     const size = 22, gap = 4;
     let monthSec = 0, cellsHtml = '';
+    heatMaxSec = 0;
+    for (let d = 1; d <= days; d++) { // 先扫一遍取本月峰值（连续渐变基准）
+      const ds = y + '-' + pad2(m + 1) + '-' + pad2(d);
+      heatMaxSec = Math.max(heatMaxSec, data[ds] || 0);
+    }
     for (let d = 1; d <= days; d++) {
       const ds = y + '-' + pad2(m + 1) + '-' + pad2(d);
       const sec = data[ds] || 0;
       monthSec += sec;
-      const lv = heatLevel(sec);
       const label = ds.slice(5).replace('-', '/') + ' ' + (sec ? fmtMin(sec) : '无记录');
-      const bg = 'background:' + HEAT_COLORS[lv];
-      cellsHtml += '<div class="hmc" style="width:' + size + 'px;height:' + size + 'px;' + bg + '" title="' + label + '" onclick="heatJump(\'' + ds + '\')"></div>';
+      const bg = 'background:' + heatColor(sec);
+      cellsHtml += '<div class="hmc" data-ds="' + ds + '" style="width:' + size + 'px;height:' + size + 'px;' + bg + '" title="' + label + '" onclick="heatJump(\'' + ds + '\')"></div>';
     }
     html = '<div style="display:grid;grid-template-columns:repeat(7,' + size + 'px);gap:' + gap + 'px;justify-content:center">' + cellsHtml + '</div>';
     labelText = y + '年' + (m + 1) + '月 · ' + (heatMonthOffset === 0 ? '本月 ' : '') + fmtMin(monthSec);
@@ -2441,6 +2537,7 @@ function renderHeat() {
   } else {
     // 总览：从首条记录的周一到本周，月标签行 + 周列（13px 小格子，横向滚动）
     const keys = Object.keys(data).sort();
+    heatMaxSec = keys.reduce((mx, k) => Math.max(mx, data[k] || 0), 0); // 全期峰值=总览渐变基准
     let start = keys.length ? new Date(keys[0] + 'T00:00:00') : new Date(Date.now() - 35 * 86400000);
     start.setHours(0, 0, 0, 0);
     start.setDate(start.getDate() - (start.getDay() + 6) % 7);
@@ -2470,6 +2567,11 @@ function renderHeat() {
   }
   wrap.innerHTML = html;
   document.getElementById('heat-label').textContent = labelText;
+  // 选中恢复：翻月/切模式重渲染后，选中日若在当前视图内则重新圈上
+  if (heatSel) {
+    const el = wrap.querySelector('.hmc[data-ds="' + heatSel + '"]');
+    if (el) el.classList.add('sel');
+  }
   const legend = document.getElementById('heat-legend');
   if (legend && !legend.childElementCount) {
     legend.innerHTML = HEAT_COLORS.map(c => '<div style="width:12px;height:12px;border-radius:3px;background:' + c + '"></div>').join('');
@@ -2486,9 +2588,17 @@ function shiftHeatMonth(delta) {
   heatMonthOffset = next;
   renderHeat();
 }
+let heatSel = null; // 当前选中日（点击圈高亮，再点同格取消）
 function heatJump(ds) {
   const sec = getHeatData()[ds] || 0;
   toast(ds.slice(5).replace('-', '/') + ' · ' + (sec ? fmtMin(sec) : '无记录'), 'success');
+  // 点击选中高亮环（参考积分面板样式）：同格再点=取消
+  const wrap = document.getElementById('heat-wrap');
+  const cell = wrap ? wrap.querySelector('.hmc[data-ds="' + ds + '"]') : null;
+  if (!cell) return;
+  const was = cell.classList.contains('sel');
+  wrap.querySelectorAll('.hmc.sel').forEach(c => c.classList.remove('sel'));
+  if (!was) { cell.classList.add('sel'); heatSel = ds; } else heatSel = null;
 }
 
 function getStatsData(period) {
@@ -2728,13 +2838,58 @@ probeVersion();
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') probeVersion(); });
 window.addEventListener('pageshow', e => { if (e.persisted) probeVersion(); });
 
+// ====== 后台修改→前台自动同步：切回前台 60s 节流拉云端，有变更即重渲染 ======
+let _lastAutoPull = Date.now();
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible') return;
+  if (Date.now() - _lastAutoPull < 60000) return;
+  if (timerRunning) return; // 计时中不平移数据，避免干扰当前段
+  _lastAutoPull = Date.now();
+  try {
+    const n = await SYNC.pull();
+    if (n) {
+      try {
+        const fresh = JSON.parse(localStorage.getItem('dw_workbench_config') || '{}');
+        Object.keys(CFG).forEach(k => delete CFG[k]);
+        Object.assign(CFG, fresh);
+      } catch (e) {}
+      try { renderTabs(); renderMotto(); renderTasks(); renderStats(); renderHeat(); renderMemos(); updateCheckinUI(); updateTimerCount(); updateStudyTotal(); drawWheel(); } catch (e) {}
+      toast('☁️ 已同步后台修改 ' + n + ' 条');
+      SYNC.pushAll();
+    }
+  } catch (e) {}
+});
+
+// ====== 手动刷新（标题栏 🔄）：拉云端最新→合并→重渲染 ======
+async function refreshApp(btn) {
+  if (btn) { btn.classList.add('spinning'); btn.disabled = true; }
+  try {
+    const n = await SYNC.pull();
+    if (n) {
+      try {
+        const fresh = JSON.parse(localStorage.getItem('dw_workbench_config') || '{}');
+        Object.keys(CFG).forEach(k => delete CFG[k]);
+        Object.assign(CFG, fresh);
+      } catch (e) {}
+      try { renderTabs(); renderMotto(); renderTasks(); renderStats(); renderHeat(); renderMemos(); updateCheckinUI(); updateTimerCount(); updateStudyTotal(); drawWheel(); } catch (e) {}
+      toast('🔄 已刷新：云端合并 ' + n + ' 条数据');
+    } else {
+      toast('🔄 已刷新：本地即最新');
+    }
+    SYNC.pushAll();
+  } catch (e) {
+    toast('⚠️ 刷新失败：云端暂不可达');
+  }
+  if (btn) { btn.classList.remove('spinning'); btn.disabled = false; }
+}
+
 // ====== 云同步：加载时拉云端合并，有更新则刷新界面；再全量对账推送（历史数据兜底上云）======
 (async () => {
   const n = await SYNC.pull();
   if (n) {
     // 云端合并进 localStorage 后，把最新配置刷进运行中的 CFG 再重渲染
     try {
-      const fresh = JSON.parse(localStorage.getItem('wb_demo_config') || '{}');
+      const fresh = JSON.parse(localStorage.getItem('dw_workbench_config') || '{}');
       Object.keys(CFG).forEach(k => delete CFG[k]);
       Object.assign(CFG, fresh);
     } catch (e) {}
@@ -2745,7 +2900,7 @@ window.addEventListener('pageshow', e => { if (e.persisted) probeVersion(); });
 })();
 
 // ====== PWA：Service Worker 注册（页面骨架缓存，秒开+离线；数据同步不受影响）======
-if (false) { // demo 版不注册 serviceWorker
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   });
