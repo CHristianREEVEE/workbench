@@ -491,12 +491,12 @@ function renderOverview(){
   const overrides=DB.get('manual_time',{})||{};
   const counts=DB.get('task_counts',{});
   let totalSec=0,totalSegs=0;
-  for(const d in timerData){
-    const segs=timerData[d];
-    totalSegs+=segs.length;
+  for(const d in timerData) totalSegs+=timerData[d].length;
+  const _dates=new Set([...Object.keys(timerData),...Object.keys(overrides)]);   // 并集遍历：纯手动补录日（无计时段）不再漏算（2026-10-19 修：8月漏240min）
+  _dates.forEach(d=>{
     if(overrides[d]!==undefined){totalSec+=overrides[d]*60}
-    else{segs.forEach(s=>{totalSec+=s.duration})}
-  }
+    else{(timerData[d]||[]).forEach(s=>{totalSec+=s.duration})}
+  });
   totalSec += (DB.get('course_time',0)||0)*60;   // 网课存量并入（2026-10-19：与首页口径统一，含 870 分钟网课）
   let totalTaskDone=0;
   for(const k in counts)totalTaskDone+=counts[k]||0;
