@@ -1051,7 +1051,7 @@ const DB = {
 
 // ====== 云同步层（数据自动备份到 wb.reeve10001.top/wbsync）======
 const SYNC = {
-  key: 'wb_sync_2026',
+  key: '04aaf059e163090a20326ad431957248',
   url: 'https://wb.reeve10001.top/wbsync/api/',
   dirty: {},      // 待推送的键
   timer: null,
@@ -1085,6 +1085,7 @@ const SYNC = {
   async pull() {                 // 启动时拉云端全量，合并进本地
     try {
       const r = await fetch(this.url + 'all?k=' + this.key);
+      if (r.status === 401 || r.status === 403) throw new Error('unauthorized');   // 2026-10-19：鉴权失败显式抛错，不再静默 return false 冒充「本地即最新」
       const j = await r.json();
       if (!j.ok || !j.data) return false;
       const local = {};
