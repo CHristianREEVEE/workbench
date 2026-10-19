@@ -723,6 +723,7 @@
 
 <header>
   <div class="main-title">南浊 · 个人工作台</div>
+  <button class="wallpaper-btn" id="undoBtn" onclick="wbUndo()" title="撤回最近操作" style="display:none">↩️</button>
   <button class="wallpaper-btn" onclick="openWallpaperModal()" title="壁纸设置">👕</button>
   <button class="motto-edit-btn" onclick="openMottoModal()" title="修改格言" aria-label="修改格言"><span class="orb"></span></button>
   <button class="wallpaper-btn" id="refresh-btn" onclick="refreshApp(this)" title="拉取云端最新数据并刷新" aria-label="刷新">🔄</button>
@@ -1423,6 +1424,37 @@ function updateAdjustUI() {
     el.textContent = '';
   }
 }
+/* ===== 分段编辑+撤销（2026-10-19 TA 点单：编辑按钮/红圈减号删除/右上角撤回）===== */
+let WB_UNDO = [];
+function toggleSegEdit(){ window.__segEdit=!window.__segEdit; renderStats(); }
+function delSeg(idx){
+  const stats = getStatsData(statTab);
+  const day = stats[0]; if(!day || !day.segments[idx]) return;
+  const key = 'timer_segments', all = DB.get(key, {});
+  const segsOfDay = all[day.date] || [];
+  // 找真实段（segments 是当天数组的引用或拷贝——按 idx 对齐
+  const real = segsOfDay[idx];
+  if (real) {
+    WB_UNDO.push({ key, date: day.date, idx, seg: JSON.parse(JSON.stringify(real)) });
+    segsOfDay.splice(idx,1);
+    if (segsOfDay.length) all[day.date]=segsOfDay; else delete all[day.date];
+    DB.set(key, all);
+    updateStudyTotal(); updateTimerCount(); renderStats();
+    toast('已删除 1 段（可点右上 ↩️ 撤回）','warn'); refreshUndoBtn();
+  }
+}
+function wbUndo(){
+  const u = WB_UNDO.pop();
+  if(!u){ toast('没有可撤回的操作','warn'); return; }
+  const all = DB.get(u.key, {});
+  const arr = all[u.date] || [];
+  arr.splice(Math.min(u.idx, arr.length), 0, u.seg);
+  all[u.date] = arr;
+  DB.set(u.key, all);
+  updateStudyTotal(); updateTimerCount(); renderStats();
+  toast('已撤回：恢复 1 段记录','success'); refreshUndoBtn();
+}
+function refreshUndoBtn(){ const b=document.getElementById('undoBtn'); if(b) b.style.display = WB_UNDO.length ? '' : 'none'; }
 function updateTimerCount() {
   const segs = getTodaySegments();
   let totalSec = segs.reduce((s, x) => s + x.duration, 0);
@@ -2667,9 +2699,10 @@ function renderStats() {
       html += `<div class="stat-row" style="border-bottom:1px solid var(--border);padding-bottom:8px"><span>各科目</span><b>${subjEntries.map(e => e[0] + ' ' + fmtMin(e[1])).join(' · ')}</b></div>`;
     }
     if (segs.length) {
-      html += `<div class="section-label" style="margin-top:12px">${L.seg_detail || '分段明细'}</div>`;
-      html += segs.map(s => {
-        return `<div class="stat-row"><span>${s.subject ? '[' + s.subject + ']' : ''}</span><b>${fmtMin(s.duration)}</b></div>`;
+      html += `<div class="section-label" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">${L.seg_detail || '分段明细'}<button id="segEditBtn" onclick="toggleSegEdit()" style="font-size:11px;padding:2px 10px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-mid);cursor:pointer">${window.__segEdit?'完成':'编辑'}</button></div>`;
+      html += segs.map((s, idx) => {
+        const del = window.__segEdit ? `<button onclick="delSeg(${idx})" title="删除该段" style="width:22px;height:22px;border-radius:50%;border:1.5px solid #e5484d;color:#e5484d;background:transparent;cursor:pointer;font-size:14px;line-height:1;flex:none;margin-left:8px">−</button>` : '';
+        return `<div class="stat-row" style="${window.__segEdit?'border:1px dashed var(--border);padding:6px 8px':''}"><span style="display:flex;align-items:center;gap:6px;min-width:0">${window.__segEdit?del:''}${s.subject ? '[' + s.subject + ']' : ''}</span><b>${fmtMin(s.duration)}</b></div>`;
       }).join('');
     }
     if (liveSec > 0) {
