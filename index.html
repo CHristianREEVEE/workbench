@@ -99,7 +99,8 @@
   .motto-edit-btn:active .orb { transform: scale(.88); transition: transform .1s; }
   header {
     background: linear-gradient(180deg, #2a2438 0%, #1a1721 100%);
-    padding: 40px 20px 20px;
+    /* 底部垫高（10-21 TA「标题总是显示完整」）：按钮带与标题带垂直分离，任何屏宽圆钮不再盖住标题尾字 */
+    padding: 40px 20px 54px;
     text-align: center;
     position: sticky;
     top: 0;
