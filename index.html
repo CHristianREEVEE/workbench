@@ -729,9 +729,19 @@
     .streak-row { gap: 16px; }
     .streak-item .value { font-size: 19px; }
   }
-  /* 宽屏（≥1100px，电脑）：呼吸感舒展，仍单列居中 */
+  /* 宽屏（≥1100px，电脑）：真桌面双列布局（10-31 TA 点单「像电脑网页的分配布局」），手机端不动 */
   @media (min-width: 1100px) {
-    .container { max-width: 560px; }
+    .container { max-width: 1060px; }
+    /* 首页：格言/统计/图表入口/努力全景横幅全宽，打卡与番茄计时双列并排 */
+    #panel-home { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 24px; align-items: start; }
+    #panel-home > section { margin-bottom: 0; }
+    #panel-home > section:nth-child(1) { grid-column: 1 / -1; }  /* 格言横幅 */
+    /* nth-child(2)=打卡总览(左列) nth-child(3)=番茄计时(右列) 自然并排 */
+    #panel-home > section:nth-child(4) { grid-column: 1 / -1; }  /* 学习数据统计全宽 */
+    #panel-home > section:nth-child(5) { grid-column: 1 / -1; }  /* 图表生成入口全宽 */
+    #panel-home > section:nth-child(6) { grid-column: 1 / -1; }  /* 努力全景(热力图)全宽 */
+    /* 其他面板：单列卡居中限宽，不散不变形 */
+    .panel > section:only-child { max-width: 760px; margin-left: auto; margin-right: auto; }
     .card { padding: 20px 22px; }
     .big-clock { font-size: 62px; }
     .checkin-btn { width: 128px; height: 128px; }
