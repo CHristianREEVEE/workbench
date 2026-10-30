@@ -205,7 +205,7 @@
   .btn-sq.paused { background: var(--orange); color: #fff; }
   .btn-sm { padding: 6px 14px; font-size: 13px; min-height: 36px; border-radius: 8px; }
   /* ===== Module 1: Check-in ===== */
-  .checkin-area { text-align: center; padding: 10px 0; }
+  .checkin-area { text-align: center; padding: 14px 0; }
   .today-date { font-size: 15px; color: var(--text-mid); margin-bottom: 2px; }
   .big-clock {
     font-size: 56px; font-weight: 800; text-align: center;
@@ -232,8 +232,8 @@
     background: rgba(108,191,132,0.15);
     color: var(--green);
   }
-  .checkin-count { font-size: 14px; color: var(--text-mid); }
-  .checkin-count b { font-size: 24px; color: var(--accent-light); }
+  .checkin-count { font-size: 14px; color: var(--text-mid); line-height: 1.7; padding: 2px 0; }
+  .checkin-count b { font-size: 24px; color: var(--accent-light); display: inline-block; line-height: 1.25; vertical-align: -3px; min-width: 1.1em; }
   .checkin-count b .min-sub { font-size: 13px; font-weight: 400; color: var(--text-mid); }
   .streak-row { display: flex; justify-content: center; gap: 24px; margin-top: 10px; }
   .streak-item { text-align: center; }
@@ -686,7 +686,7 @@
     overscroll-behavior-x: contain;
   }
   .tabs::-webkit-scrollbar { display: none; }
-  .tab-add { color: var(--text-mid); flex: 0 0 52px !important; justify-content: center; }
+  .tabs .tab-add { display: flex; align-items: center; justify-content: center; color: var(--text) !important; font-size: 18px !important; font-weight: 700 !important; flex: 0 0 52px !important; position: sticky; right: 0; background: var(--bg-2); z-index: 5; box-shadow: -16px 0 14px -10px var(--bg-2); }
   .tab {
     flex: 1; padding: 10px 0; cursor: pointer;
     color: var(--text-dim); font-size: 14px; font-weight: 500;
@@ -716,6 +716,27 @@
   50% { box-shadow: 0 0 0 9px rgba(255,75,75,0); }
 }
 .memo-time { font-size: 10.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; margin-bottom: 2px; letter-spacing: .02em; }
+
+  /* ===== 自适应（2026-10-31 TA 点单：让它自己认屏）===== */
+  /* 窄屏（≤400px，小手机）：紧凑间距，防挤防裁 */
+  @media (max-width: 400px) {
+    .container { padding: 12px; }
+    .container > section { margin-bottom: 14px; }
+    .card { padding: 14px; }
+    .big-clock { font-size: 46px; letter-spacing: 2px; }
+    .checkin-btn { width: 104px; height: 104px; font-size: 16px; }
+    .checkin-count b { font-size: 21px; }
+    .streak-row { gap: 16px; }
+    .streak-item .value { font-size: 19px; }
+  }
+  /* 宽屏（≥1100px，电脑）：呼吸感舒展，仍单列居中 */
+  @media (min-width: 1100px) {
+    .container { max-width: 560px; }
+    .card { padding: 20px 22px; }
+    .big-clock { font-size: 62px; }
+    .checkin-btn { width: 128px; height: 128px; }
+    .streak-row { gap: 32px; }
+  }
 </style>
 </head>
 <body>
