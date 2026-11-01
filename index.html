@@ -732,8 +732,9 @@
   /* 宽屏（≥1100px，电脑）：真桌面双列布局（10-31 TA 点单「像电脑网页的分配布局」），手机端不动 */
   @media (min-width: 1100px) {
     .container { max-width: 1060px; }
-    /* 首页：格言/统计/图表入口/努力全景横幅全宽，打卡与番茄计时双列并排 */
-    #panel-home { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 24px; align-items: start; }
+    /* 首页：格言/统计/图表入口/努力全景横幅全宽，打卡与番茄计时双列并排
+       11-01 修复：grid 只挂 .active——裸 ID 特异性压过 .panel{display:none}，桌面端切 tab 后首页不隐藏、新面板被顶到首页最下方（TA 点单「点了都是在首页最下方打开，改成跳转」） */
+    #panel-home.active { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 24px; align-items: start; }
     #panel-home > section { margin-bottom: 0; }
     #panel-home > section:nth-child(1) { grid-column: 1 / -1; }  /* 格言横幅 */
     /* nth-child(2)=打卡总览(左列) nth-child(3)=番茄计时(右列) 自然并排 */
