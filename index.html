@@ -255,6 +255,22 @@
   @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
   .timer-btns { display: flex; gap: 10px; justify-content: center; }
   .timer-adjust { display: flex; gap: 5px; justify-content: center; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+  /* 番茄卡填满（11-01）：本周条形图 + 今日分段 */
+  .timer-week { margin-top: 12px; }
+  .timer-week-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--text-mid); margin-bottom: 6px; }
+  .timer-week-head b { color: var(--accent-light); font-size: 12px; }
+  .timer-week-bars { display: flex; gap: 6px; align-items: flex-end; height: 76px; padding: 2px 2px 0; }
+  .timer-week-bars .wbar { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; min-width: 0; }
+  .timer-week-bars .wbar i { display: block; width: 100%; max-width: 34px; background: #3d4a63; border-radius: 4px 4px 2px 2px; min-height: 3px; }
+  .timer-week-bars .wbar.today i { background: var(--green); box-shadow: 0 0 10px rgba(88,204,2,.35); }
+  .timer-week-bars .wbar em { font-style: normal; font-size: 11px; color: var(--text-dim); }
+  .timer-week-bars .wbar.today em { color: var(--green); font-weight: 700; }
+  .timer-segs { margin-top: 10px; display: flex; flex-direction: column; gap: 5px; }
+  .timer-segs .tseg { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 8px; padding: 5px 12px; font-size: 13px; }
+  .timer-segs .tseg .tsubj { color: var(--text-mid); display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .timer-segs .tseg .tsubj i { font-style: normal; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+  .timer-segs .tseg b { color: var(--accent-light); font-size: 12.5px; flex: none; }
+  .timer-segs .empty { text-align: center; font-size: 12.5px; color: var(--text-dim); padding: 8px 0; }
   .adj-panel {
     display: flex; gap: 5px; justify-content: center; align-items: center; flex-wrap: wrap;
     width: 100%; padding: 8px; margin-top: 6px;
@@ -830,6 +846,12 @@
         </div>
       </div>
       <div id="ta-pending" class="ta-pending"></div>
+      <!-- 11-01 TA 点单「番茄计时器板块布局填满」：本周每日条形图 + 今日分段明细 -->
+      <div class="timer-week" id="timer-week">
+        <div class="timer-week-head"><span>📅 本周每日</span><b id="timer-week-total">0 分钟</b></div>
+        <div class="timer-week-bars" id="timer-week-bars"></div>
+      </div>
+      <div class="timer-segs" id="timer-segs"></div>
       <div style="text-align:center;margin-top:8px;font-size:14px;color:var(--text-mid)" id="timer-count">今日 0 段 · 共 0 分钟</div>
       <div style="text-align:center;margin-top:6px;font-size:13px;font-weight:600;color:#c07f00" id="timer-record"></div>
     </div>
@@ -1495,6 +1517,34 @@ function updateTimerCount() {
   const fmt = CFG.statLabels.timer_count || '今日 {n} 段 · 共 {m}';
   document.getElementById('timer-count').textContent = fmt.replace('{n}',segs.length).replace('{m}',fmtDual(totalSec)).replace('分钟 分钟', '分钟');
   updateRecordBadge();
+  renderTimerExtras();
+}
+// 番茄卡填满（11-01 TA 点单）：本周 7 天条形图 + 今日分段明细（数据全走既有聚合，零新存储）
+function renderTimerExtras() {
+  const week = getStatsData('week');
+  const t = today();
+  let maxMin = 0, totalMin = 0;
+  week.forEach(d => { const m = Math.round(d.total/60); totalMin += m; if (m > maxMin) maxMin = m; });
+  const maxBar = 56;
+  let html = '';
+  week.forEach(d => {
+    const m = Math.round(d.total/60);
+    const bh = maxMin ? Math.max(3, Math.round(m / maxMin * maxBar)) : 3;
+    const isToday = d.date === t;
+    const idx = new Date(d.date + 'T12:00:00').getDay();
+    html += `<div class="wbar${isToday?' today':''}"><i style="height:${bh}px" title="${d.date.slice(5)} · ${m} 分钟"></i><em>${'日一二三四五六'[idx]}</em></div>`;
+  });
+  document.getElementById('timer-week-bars').innerHTML = html;
+  document.getElementById('timer-week-total').textContent = totalMin + ' 分钟';
+  const segs = getTodaySegments().slice().reverse();
+  const el = document.getElementById('timer-segs');
+  if (!segs.length) {
+    el.innerHTML = '<div class="empty">今天还没有学习段——点「开始学习」计第一段</div>';
+  } else {
+    el.innerHTML = segs.slice(0, 4).map(s =>
+      `<div class="tseg"><span class="tsubj"><i></i>${s.subject ? '[' + s.subject + ']' : '未分类'} · ${new Date(s.start).toTimeString().slice(0,5)} 起</span><b>${Math.round(s.duration/60)} 分钟</b></div>`
+    ).join('') + (segs.length > 4 ? `<div class="empty" style="padding:2px 0">…还有 ${segs.length - 4} 段，详见下方统计</div>` : '');
+  }
 }
 // 总计学习时长：全期累计（口径与统计一致，manual_time 覆盖优先）+ 网课存量（不挂日期，只进总数）
 function updateStudyTotal() {
@@ -2171,7 +2221,7 @@ const WHEEL_DEFS = {
   food:   { name: '吃什么', items: ['火锅', '烧烤', '日料', '麻辣烫', '兰州拉面', '沙县小吃', '汉堡', '披萨', '川菜', '粤菜', '湘菜', '随便吃'] },
 };
 let wheelKey = 'travel';
-let wheelAngle = 0, spinning = false;
+let wheelAngle = 0, spinning = false, goAngle = 0; // goAngle=GO 随转角（11-01 TA 点单「转盘中间的 GO 也可以转」）
 
 function getWheelItems() { return DB.get('wheel_' + wheelKey, WHEEL_DEFS[wheelKey].items); }
 function setWheelItems(items) { DB.set('wheel_' + wheelKey, items); }
@@ -2179,7 +2229,7 @@ function setWheelItems(items) { DB.set('wheel_' + wheelKey, items); }
 function switchWheel(k) {
   wheelKey = k;
   document.querySelectorAll('.wheel-tabs .wtab').forEach(t => t.classList.toggle('active', t.dataset.w === k));
-  wheelAngle = 0;
+  wheelAngle = 0; goAngle = 0;
   drawWheel();
   document.getElementById('wheel-result').textContent = '点击「转！」开始';
   document.getElementById('wheel-result').classList.remove('big');
@@ -2221,13 +2271,17 @@ function drawWheel() {
     ctx.fillText(label, 0, 0);
     ctx.restore();
   }
-  // 中心
+  // 中心（11-01 TA 点单：GO 跟着转盘一起转，转完平滑回正）
   ctx.beginPath(); ctx.arc(cx, cy, 26, 0, Math.PI * 2);
   ctx.fillStyle = '#1a2333'; ctx.fill();
   ctx.strokeStyle = '#58cc02'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(goAngle);
   ctx.fillStyle = '#58cc02'; ctx.font = 'bold 13px system-ui';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('GO', cx, cy);
+  ctx.fillText('GO', 0, 0);
+  ctx.restore();
 }
 
 function spinWheel() {
@@ -2254,10 +2308,22 @@ function spinWheel() {
     const p = Math.min(1, (t - t0) / dur);
     const deg = startAngle + (total - startAngle) * easeOut(p);
     wheelAngle = deg * Math.PI / 180;
+    goAngle = wheelAngle; // GO 跟转
     drawWheel();
     if (p < 1) { requestAnimationFrame(frame); }
     else {
       spinning = false;
+      // GO 回正：转到最近的整圈角度（450ms 平滑收尾，新一轮 spin 启动即让位）
+      const goTarget = Math.round(goAngle / (Math.PI * 2)) * Math.PI * 2;
+      const goStart = goAngle, gt0 = performance.now(), gdur = 450;
+      (function goFrame(t) {
+        if (spinning) return; // 新 spin 已接管 goAngle
+        const gp = Math.min(1, (t - gt0) / gdur);
+        goAngle = goStart + (goTarget - goStart) * (1 - Math.pow(1 - gp, 3));
+        drawWheel();
+        if (gp < 1) requestAnimationFrame(goFrame);
+        else { goAngle = goTarget; drawWheel(); }
+      })(performance.now());
       // 校验落点
       const norm = ((deg % 360) + 360) % 360;
       const landed = Math.floor((((270 - norm % 360) % 360) + 360) % 360 / arc) % n;
@@ -2274,7 +2340,7 @@ function resetWheel() {
   showConfirm('恢复这个转盘的默认选项？', () => {
     DB.set('wheel_' + wheelKey, null);
     localStorage.removeItem('wb_wheel_' + wheelKey);
-    wheelAngle = 0;
+    wheelAngle = 0; goAngle = 0;
     drawWheel();
     toast('已重置 ✅', 'success');
   });
@@ -2288,7 +2354,7 @@ function editWheelItems() {
   if (!arr.length) { toast('至少要一个选项', ''); return; }
   if (arr.length > 16) { toast('最多 16 个选项', ''); return; }
   setWheelItems(arr);
-  wheelAngle = 0;
+  wheelAngle = 0; goAngle = 0;
   drawWheel();
   const resEl2 = document.getElementById('wheel-result');
   resEl2.textContent = '选项已更新，点「转！」开始';
