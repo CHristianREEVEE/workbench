@@ -265,12 +265,12 @@
   .timer-week-bars .wbar.today i { background: var(--green); box-shadow: 0 0 10px rgba(88,204,2,.35); }
   .timer-week-bars .wbar em { font-style: normal; font-size: 11px; color: var(--text-dim); }
   .timer-week-bars .wbar.today em { color: var(--green); font-weight: 700; }
-  .timer-segs { margin-top: 10px; display: flex; flex-direction: column; gap: 5px; }
-  .timer-segs .tseg { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 8px; padding: 5px 12px; font-size: 13px; }
-  .timer-segs .tseg .tsubj { color: var(--text-mid); display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .timer-segs .tseg .tsubj i { font-style: normal; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
-  .timer-segs .tseg b { color: var(--accent-light); font-size: 12.5px; flex: none; }
-  .timer-segs .empty { text-align: center; font-size: 12.5px; color: var(--text-dim); padding: 8px 0; }
+  /* 番茄卡（11-03 TA 点单：删分段明细——学习统计日统计本来就有，重复；柱状图下直接今日时长大字体） */
+  .timer-today { display: flex; justify-content: center; align-items: baseline; gap: 5px; margin-top: 12px; flex-wrap: wrap; }
+  .timer-today .tt-label { font-size: 14px; color: var(--text-mid); }
+  .timer-today .tt-num { font-size: 30px; font-weight: 800; color: var(--green); line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .timer-today .tt-unit { font-size: 13px; color: var(--text-mid); }
+  .timer-today .tt-sub { font-size: 12.5px; color: var(--text-dim); }
   .adj-panel {
     display: flex; gap: 5px; justify-content: center; align-items: center; flex-wrap: wrap;
     width: 100%; padding: 8px; margin-top: 6px;
@@ -846,13 +846,14 @@
         </div>
       </div>
       <div id="ta-pending" class="ta-pending"></div>
-      <!-- 11-01 TA 点单「番茄计时器板块布局填满」：本周每日条形图 + 今日分段明细 -->
+      <!-- 11-01 TA 点单：本周每日条形图；11-03 TA 点单：删分段明细（学习统计本来就有，重复），柱状图下直接今日时长大字体 -->
       <div class="timer-week" id="timer-week">
         <div class="timer-week-head"><span>📅 本周每日</span><b id="timer-week-total">0 分钟</b></div>
         <div class="timer-week-bars" id="timer-week-bars"></div>
       </div>
-      <div class="timer-segs" id="timer-segs"></div>
-      <div style="text-align:center;margin-top:8px;font-size:14px;color:var(--text-mid)" id="timer-count">今日 0 段 · 共 0 分钟</div>
+      <div class="timer-today">
+        <span class="tt-label">今日</span><b class="tt-num" id="timer-today-num">0</b><span class="tt-unit">分钟</span><span class="tt-sub" id="timer-count">· 0 段</span>
+      </div>
       <div style="text-align:center;margin-top:6px;font-size:13px;font-weight:600;color:#c07f00" id="timer-record"></div>
     </div>
   </section>
@@ -1514,12 +1515,17 @@ function updateTimerCount() {
   const segs = getTodaySegments();
   let totalSec = segs.reduce((s, x) => s + x.duration, 0);
   if (timerRunning) totalSec += liveElapsedSec(); // 进行中的时间也计入今日（暂停不计）
-  const fmt = CFG.statLabels.timer_count || '今日 {n} 段 · 共 {m}';
-  document.getElementById('timer-count').textContent = fmt.replace('{n}',segs.length).replace('{m}',fmtDual(totalSec)).replace('分钟 分钟', '分钟');
+  // 11-03 TA 点单：时长大字已由 renderTimerExtras 渲染，这里只出段数（+超1小时附换算）
+  const cntEl = document.getElementById('timer-count');
+  if (cntEl) {
+    const h = totalSec / 3600;
+    const sub = '· ' + segs.length + ' 段' + (h >= 1 ? ' · ' + h.toFixed(1) + ' 小时' : '');
+    if (cntEl.dataset.last !== sub) { cntEl.textContent = sub; cntEl.dataset.last = sub; }
+  }
   updateRecordBadge();
   renderTimerExtras();
 }
-// 番茄卡填满（11-01 TA 点单）：本周 7 天条形图 + 今日分段明细（数据全走既有聚合，零新存储）
+// 番茄卡填满（11-01）：本周 7 天条形图；11-03 TA 点单：删分段明细（学习统计日统计本来就有，重复），柱状图下直接今日时长大字体
 function renderTimerExtras() {
   const week = getStatsData('week');
   const t = today();
@@ -1536,15 +1542,11 @@ function renderTimerExtras() {
   });
   document.getElementById('timer-week-bars').innerHTML = html;
   document.getElementById('timer-week-total').textContent = totalMin + ' 分钟';
-  const segs = getTodaySegments().slice().reverse();
-  const el = document.getElementById('timer-segs');
-  if (!segs.length) {
-    el.innerHTML = '<div class="empty">今天还没有学习段——点「开始学习」计第一段</div>';
-  } else {
-    el.innerHTML = segs.slice(0, 4).map(s =>
-      `<div class="tseg"><span class="tsubj"><i></i>${s.subject ? '[' + s.subject + ']' : '未分类'} · ${new Date(s.start).toTimeString().slice(0,5)} 起</span><b>${Math.round(s.duration/60)} 分钟</b></div>`
-    ).join('') + (segs.length > 4 ? `<div class="empty" style="padding:2px 0">…还有 ${segs.length - 4} 段，详见下方统计</div>` : '');
-  }
+  // 今日时长大字（与 updateTimerCount 同口径：含进行中实时；分钟变化才写 DOM，tick 防抖）
+  const daySec = getTodaySegments().reduce((s, x) => s + x.duration, 0) + (timerRunning ? liveElapsedSec() : 0);
+  const dayMin = Math.floor(daySec / 60);
+  const numEl = document.getElementById('timer-today-num');
+  if (numEl && numEl.dataset.last !== String(dayMin)) { numEl.textContent = dayMin; numEl.dataset.last = String(dayMin); }
 }
 // 总计学习时长：全期累计（口径与统计一致，manual_time 覆盖优先）+ 网课存量（不挂日期，只进总数）
 function updateStudyTotal() {
@@ -1657,7 +1659,7 @@ const defaultConfig={
   tabs:[{id:"home",icon:"🏠",name:"首页"},{id:"study",icon:"📋",name:"学习"},{id:"memo",icon:"⚡",name:"速记"},{id:"coding",icon:"🎡",name:"转盘"}],
   cardTitles:{checkin_stats:"📋 打卡 & 数据总览",timer:"⏱ 番茄计时器",tasks:"📚 每日学习任务",memo:"⚡ 知识库速记",stats:"📊 学习数据统计",coding:"🎡 决策转盘"},
   buttons:{checkin:"今日打卡",stats:"📊 数据统计",timer_start:"▶ 开始学习",timer_stop:"■ 结束计时",memo_add:"+ 新增"},
-  statLabels:{checkin_total:"累计打卡 {n} 天",timer_count:"今日 {n} 段 · 共 {m}"},
+  statLabels:{checkin_total:"累计打卡 {n} 天"},
   statTabs:{day:"日统计",week:"周统计",month:"月统计"},
   statRowLabels:{daily_total:"当日总时长",seg_count:"学习段数",seg_detail:"分段明细",no_data:"今日暂无记录",week_total:"本周总时长",daily_avg:"日均时长",checkin_days:"打卡天数",study_days:"学习天数",trend_title:"时长趋势",month_total:"月度总时长",week_trend:"周度趋势",minute_suffix:"分"},
   taskGroups:[
