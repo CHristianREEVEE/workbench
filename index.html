@@ -265,12 +265,7 @@
   .timer-week-bars .wbar.today i { background: var(--green); box-shadow: 0 0 10px rgba(88,204,2,.35); }
   .timer-week-bars .wbar em { font-style: normal; font-size: 11px; color: var(--text-dim); }
   .timer-week-bars .wbar.today em { color: var(--green); font-weight: 700; }
-  /* 番茄卡（11-03 TA 点单：删分段明细——学习统计日统计本来就有，重复；柱状图下直接今日时长大字体） */
-  .timer-today { display: flex; justify-content: center; align-items: baseline; gap: 5px; margin-top: 12px; flex-wrap: wrap; }
-  .timer-today .tt-label { font-size: 14px; color: var(--text-mid); }
-  .timer-today .tt-num { font-size: 30px; font-weight: 800; color: var(--green); line-height: 1.1; font-variant-numeric: tabular-nums; }
-  .timer-today .tt-unit { font-size: 13px; color: var(--text-mid); }
-  .timer-today .tt-sub { font-size: 12.5px; color: var(--text-dim); }
+  /* 11-03 二连：今日/历史最长上移计时器上方，直接复用 .checkin-count 模板（14px 标签+24px 数字+min-sub 括号小字，仿总计学习时长） */
   .adj-panel {
     display: flex; gap: 5px; justify-content: center; align-items: center; flex-wrap: wrap;
     width: 100%; padding: 8px; margin-top: 6px;
@@ -827,6 +822,9 @@
         <button class="subj-btn" data-s="逻辑" onclick="setSubject('逻辑')">逻辑</button>
         <button class="subj-btn" data-s="写作" onclick="setSubject('写作')">写作</button>
       </div>
+      <!-- 11-03 TA 点单（二连）：今日+历史最长上移计时器上方，格式仿总计学习时长（优先小时+括号分钟小字），不要段数 -->
+      <div class="checkin-count">今日 <b id="timer-today-num">0分钟</b></div>
+      <div class="checkin-count">历史最长 <b id="timer-record">—</b></div>
       <div class="timer-display" id="timer-display">00:00:00</div>
       <div class="timer-btns">
         <button class="btn btn-green" id="timer-start" onclick="startTimer()" data-cfg-btn="timer_start">▶ 开始学习</button>
@@ -851,10 +849,6 @@
         <div class="timer-week-head"><span>📅 本周每日</span><b id="timer-week-total">0 分钟</b></div>
         <div class="timer-week-bars" id="timer-week-bars"></div>
       </div>
-      <div class="timer-today">
-        <span class="tt-label">今日</span><b class="tt-num" id="timer-today-num">0</b><span class="tt-unit">分钟</span><span class="tt-sub" id="timer-count">· 0 段</span>
-      </div>
-      <div style="text-align:center;margin-top:6px;font-size:13px;font-weight:600;color:#c07f00" id="timer-record"></div>
     </div>
   </section>
   <!-- 模块3：学习数据统计（直接展示） -->
@@ -1512,16 +1506,7 @@ function wbUndo(){
 }
 function refreshUndoBtn(){ const b=document.getElementById('undoBtn'); if(b) b.style.display = WB_UNDO.length ? '' : 'none'; }
 function updateTimerCount() {
-  const segs = getTodaySegments();
-  let totalSec = segs.reduce((s, x) => s + x.duration, 0);
-  if (timerRunning) totalSec += liveElapsedSec(); // 进行中的时间也计入今日（暂停不计）
-  // 11-03 TA 点单：时长大字已由 renderTimerExtras 渲染，这里只出段数（+超1小时附换算）
-  const cntEl = document.getElementById('timer-count');
-  if (cntEl) {
-    const h = totalSec / 3600;
-    const sub = '· ' + segs.length + ' 段' + (h >= 1 ? ' · ' + h.toFixed(1) + ' 小时' : '');
-    if (cntEl.dataset.last !== sub) { cntEl.textContent = sub; cntEl.dataset.last = sub; }
-  }
+  // 11-03 二连：段数显示已撤（TA「不需要说明段数」），今日/历史最长由 renderTimerExtras/updateRecordBadge 出
   updateRecordBadge();
   renderTimerExtras();
 }
@@ -1542,11 +1527,12 @@ function renderTimerExtras() {
   });
   document.getElementById('timer-week-bars').innerHTML = html;
   document.getElementById('timer-week-total').textContent = totalMin + ' 分钟';
-  // 今日时长大字（与 updateTimerCount 同口径：含进行中实时；分钟变化才写 DOM，tick 防抖）
+  // 今日时长（11-03 二连：仿总计学习时长格式——优先小时数+括号分钟小字，位置在计时器上方；分钟变化才写 DOM）
   const daySec = getTodaySegments().reduce((s, x) => s + x.duration, 0) + (timerRunning ? liveElapsedSec() : 0);
-  const dayMin = Math.floor(daySec / 60);
+  const dh = daySec / 3600, dm = Math.floor(daySec / 60);
+  const dHtml = dh >= 1 ? dh.toFixed(1) + '小时<span class="min-sub">（' + dm + '分钟）</span>' : dm + '分钟';
   const numEl = document.getElementById('timer-today-num');
-  if (numEl && numEl.dataset.last !== String(dayMin)) { numEl.textContent = dayMin; numEl.dataset.last = String(dayMin); }
+  if (numEl && numEl.dataset.lastHtml !== dHtml) { numEl.innerHTML = dHtml; numEl.dataset.lastHtml = dHtml; }
 }
 // 总计学习时长：全期累计（口径与统计一致，manual_time 覆盖优先）+ 网课存量（不挂日期，只进总数）
 function updateStudyTotal() {
@@ -1597,8 +1583,7 @@ function addCourseTime() {
   updateStudyTotal();
   toast('✏️ 网课时长 ' + (delta >= 0 ? '+' : '−') + fmtMin(Math.abs(delta) * 60) + '，已计入总时长');
 }
-// 历史最长纪录：全期单日学习时长之最；今天刷新纪录时高亮
-function fmtRec(s) { return fmtMin(s); }
+// 历史最长纪录：全期单日学习时长之最；今天刷新纪录时整行金色+🏆标记
 function updateRecordBadge() {
   const el = document.getElementById('timer-record');
   if (!el) return;
@@ -1613,13 +1598,16 @@ function updateRecordBadge() {
   let todaySec = segs.reduce((a, x) => a + (x.duration || 0), 0);
   if (timerRunning) todaySec += liveElapsedSec();
   if (todaySec > bestSec) { bestSec = todaySec; bestDate = today(); }
-  if (bestSec < 60) { el.textContent = ''; return; }
+  if (bestSec < 60) { el.textContent = '—'; return; }
   const parts = bestDate.split('-');
   const isToday = bestDate === today();
-  el.textContent = isToday
-    ? '🏆 今日 ' + fmtRec(bestSec) + ' —— 历史新高！'
-    : '🏆 历史最长：' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日 · ' + fmtRec(bestSec);
-  el.style.color = isToday ? '#e6a23c' : '#c07f00';
+  // 11-03 二连：仿总计学习时长格式（优先小时+括号分钟小字），日期跟后面小字，新高整行金
+  const h = bestSec / 3600, m = Math.round(bestSec / 60);
+  const num = h >= 1 ? h.toFixed(1) + '小时<span class="min-sub">（' + m + '分钟）</span>' : m + '分钟';
+  el.innerHTML = isToday
+    ? num + ' <span class="rec-flag">🏆 历史新高</span>'
+    : num + ' <span class="min-sub">· ' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日</span>';
+  el.style.color = isToday ? '#e6a23c' : '';
 }
 // 恢复被浏览器杀掉的计时：页面加载时若上次仍在计时，从落盘的时间戳续算
 function restoreTimer() {
