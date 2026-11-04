@@ -265,6 +265,16 @@
   .timer-week-bars .wbar.today i { background: var(--green); box-shadow: 0 0 10px rgba(88,204,2,.35); }
   .timer-week-bars .wbar em { font-style: normal; font-size: 11px; color: var(--text-dim); }
   .timer-week-bars .wbar.today em { color: var(--green); font-weight: 700; }
+  /* 11-04 柱图时间气泡：桌面 hover 显示（限定 hover:hover 防手机触屏粘滞）、手机点击 .on 显示；边缘柱贴边防溢出 */
+  .timer-week-bars .wbar { cursor: pointer; }
+  .timer-week-bars .wbar i { position: relative; }
+  .wtip { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: #2b3a55; color: #fff; font-size: 11px; line-height: 1; padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(148,163,198,.3); box-shadow: 0 4px 12px rgba(0,0,0,.45); white-space: nowrap; opacity: 0; visibility: hidden; pointer-events: none; z-index: 5; transition: opacity .15s; }
+  .wtip.wtip-edge-l { left: 0; transform: none; }
+  .wtip.wtip-edge-r { left: auto; right: 0; transform: none; }
+  @media (hover: hover) {
+    .timer-week-bars .wbar:hover .wtip { opacity: 1; visibility: visible; }
+  }
+  .wtip.on { opacity: 1; visibility: visible; }
   /* 11-03 二连：今日/历史最长上移计时器上方，直接复用 .checkin-count 模板（14px 标签+24px 数字+min-sub 括号小字，仿总计学习时长） */
   .adj-panel {
     display: flex; gap: 5px; justify-content: center; align-items: center; flex-wrap: wrap;
@@ -1523,16 +1533,37 @@ function renderTimerExtras() {
     const bh = maxMin ? Math.max(3, Math.round(m / maxMin * maxBar)) : 3;
     const isToday = d.date === t;
     const idx = new Date(d.date + 'T12:00:00').getDay();
-    html += `<div class="wbar${isToday?' today':''}"><i style="height:${bh}px" title="${d.date.slice(5)} · ${m} 分钟"></i><em>${'日一二三四五六'[idx]}</em></div>`;
+    // 11-04 柱图气泡：首柱（周日）贴左、末柱（周六）贴右防溢出，中间柱居中
+    const tipPos = d === week[0] ? ' wtip-edge-l' : (d === week[week.length-1] ? ' wtip-edge-r' : '');
+    html += `<div class="wbar${isToday?' today':''}"><i style="height:${bh}px"><span class="wtip${tipPos}">${d.date.slice(5)} · ${m} 分钟</span></i><em>${'日一二三四五六'[idx]}</em></div>`;
   });
   document.getElementById('timer-week-bars').innerHTML = html;
   document.getElementById('timer-week-total').textContent = totalMin + ' 分钟';
+  bindWeekBarTips();
   // 今日时长（11-03 二连：仿总计学习时长格式——优先小时数+括号分钟小字，位置在计时器上方；分钟变化才写 DOM）
   const daySec = getTodaySegments().reduce((s, x) => s + x.duration, 0) + (timerRunning ? liveElapsedSec() : 0);
   const dh = daySec / 3600, dm = Math.floor(daySec / 60);
   const dHtml = dh >= 1 ? dh.toFixed(1) + '小时<span class="min-sub">（' + dm + '分钟）</span>' : dm + '分钟';
   const numEl = document.getElementById('timer-today-num');
   if (numEl && numEl.dataset.lastHtml !== dHtml) { numEl.innerHTML = dHtml; numEl.dataset.lastHtml = dHtml; }
+}
+// 11-04 TA 点单：柱图时间气泡——电脑 hover 显示（纯 CSS），手机点击切换（hover:none 设备 click 委托）；
+// 再点同柱关闭、点别柱切换、点柱区外全关；绑定挂容器 dataset 防重渲染重复绑
+function bindWeekBarTips() {
+  const barsEl = document.getElementById('timer-week-bars');
+  if (!barsEl || barsEl.dataset.tipBound) return;
+  barsEl.dataset.tipBound = '1';
+  barsEl.addEventListener('click', e => {
+    if (window.matchMedia('(hover: hover)').matches) return; // 桌面走 CSS hover，不吃 click
+    const bar = e.target.closest('.wbar'); if (!bar) return;
+    const tip = bar.querySelector('.wtip'); if (!tip) return;
+    const wasOn = tip.classList.contains('on');
+    barsEl.querySelectorAll('.wtip.on').forEach(t => t.classList.remove('on'));
+    if (!wasOn) tip.classList.add('on');
+  });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#timer-week-bars')) barsEl.querySelectorAll('.wtip.on').forEach(t => t.classList.remove('on'));
+  });
 }
 // 总计学习时长：全期累计（口径与统计一致，manual_time 覆盖优先）+ 网课存量（不挂日期，只进总数）
 function updateStudyTotal() {
