@@ -1121,6 +1121,10 @@ const SYNC = {
     clearTimeout(this.timer);
     this.timer = setTimeout(() => this.push(), 2000);
   },
+  flushNow() {                    // 11-04 事故修复：关键数据（停表落账）即时上云不等防抖，防「停表秒退」push 未发
+    clearTimeout(this.timer);
+    this.push();
+  },
   async push() {
     const d = this.dirty; this.dirty = {};
     if (!Object.keys(d).length) return;
@@ -1201,7 +1205,13 @@ const SYNC = {
           cv.forEach(x => { if (!merged.some(y => JSON.stringify(y) === JSON.stringify(x))) merged.push(x); });
         }
         else if (cv && lv && typeof cv === 'object' && typeof lv === 'object' && !Array.isArray(cv) && !Array.isArray(lv)) {
-          merged = { ...lv }; for (const k2 in cv) merged[k2] = (typeof cv[k2] === 'number' && typeof lv[k2] === 'number') ? Math.max(cv[k2], lv[k2]) : cv[k2];
+          merged = { ...lv };
+          for (const k2 in cv) {
+            const a = cv[k2], b = lv[k2];
+            // 11-04 时长吞没事故修复：云端空段数组不得覆盖本地非空（停表秒退 push 防抖未发 + 云端恰为空[]时，本地今日记录被抹为 0）；用户真删数据走 push replace 通道，不经 pull
+            if (Array.isArray(a) && Array.isArray(b) && a.length === 0 && b.length > 0) { merged[k2] = b; continue; }
+            merged[k2] = (typeof a === 'number' && typeof b === 'number') ? Math.max(a, b) : a;
+          }
         }
         else merged = cv;
         localStorage.setItem('wb_' + k, JSON.stringify(merged));
@@ -1422,6 +1432,7 @@ function stopTimer() {
     const segs = getTodaySegments();
     segs.push({ start: timerStart, end: endMs, duration: elapsed, subject: timerSubject });
     saveTodaySegments(segs);
+    SYNC.flushNow(); // 11-04 事故修复：停表落账即时上云，不等 2s 防抖（秒退页面时 push 丢失=今日 0 分钟的成因之一）
     toast(`本次学习 ${fmtMin(elapsed)}${timerSubject ? '（' + timerSubject + '）' : ''}，已保存✅`, 'success');
   } else {
     toast(`本次仅 ${elapsed} 秒，未满1分钟不计入记录`, 'warn');
