@@ -1208,8 +1208,18 @@ const SYNC = {
           merged = { ...lv };
           for (const k2 in cv) {
             const a = cv[k2], b = lv[k2];
-            // 11-04 时长吞没事故修复：云端空段数组不得覆盖本地非空（停表秒退 push 防抖未发 + 云端恰为空[]时，本地今日记录被抹为 0）；用户真删数据走 push replace 通道，不经 pull
+            // 11-04 时长吞没事故修复（二连）：云端空段数组不得覆盖本地非空（停表秒退 push 防抖未发 + 云端恰为空[]时，本地今日记录被抹为 0）；用户真删数据走 push replace 通道，不经 pull
             if (Array.isArray(a) && Array.isArray(b) && a.length === 0 && b.length > 0) { merged[k2] = b; continue; }
+            // 11-04 二连事故（昨天补 1 分钟当场显示 100、今天被覆盖回 99）：日期键下两边的段数组改为段级并集+同段(start 对齐)取 duration 大——本地补的段永不被云端旧值整段覆盖；跨设备删除由 delSeg/flushNow 即时上云保障
+            if (Array.isArray(a) && Array.isArray(b) && b.length > 0) {
+              const out = b.slice();
+              for (const seg of a) {
+                const hit = out.find(y => y.start === seg.start);
+                if (hit) { if ((seg.duration||0) > (hit.duration||0)) { hit.duration = seg.duration; if (seg.end) hit.end = seg.end; } }
+                else out.push(seg);
+              }
+              merged[k2] = out; continue;
+            }
             merged[k2] = (typeof a === 'number' && typeof b === 'number') ? Math.max(a, b) : a;
           }
         }
@@ -1510,9 +1520,25 @@ function delSeg(idx){
     segsOfDay.splice(idx,1);
     if (segsOfDay.length) all[day.date]=segsOfDay; else delete all[day.date];
     DB.set(key, all);
+    SYNC.flushNow(); // 11-04 修复：删段即时上云，防「删了秒退被云端旧数据合回来」
     updateStudyTotal(); updateTimerCount(); renderStats();
     toast('已删除 1 段（可点右上 ↩️ 撤回）','warn'); refreshUndoBtn();
   }
+}
+// 11-04 TA 点单（「有时候我学习没计时，我就补一分钟凑整」）：编辑模式给历史日期的段 +1 分钟——±调时只对运行段生效，归档记录此前无补时通道
+function bumpSeg(idx){
+  const stats = getStatsData(statTab);
+  const day = stats[0]; if(!day || !day.segments[idx]) return;
+  const key = 'timer_segments', all = DB.get(key, {});
+  const segsOfDay = all[day.date] || [];
+  const real = segsOfDay[idx];
+  if (!real) return;
+  real.duration += 60;
+  if (real.end) real.end += 60;
+  DB.set(key, all);
+  SYNC.flushNow(); // 补完即时上云，防秒退被吞
+  updateStudyTotal(); updateTimerCount(); renderStats();
+  toast('已给该段 +1 分钟，已同步✅','success');
 }
 function wbUndo(){
   const u = WB_UNDO.pop();
@@ -1551,9 +1577,9 @@ function renderTimerExtras() {
   document.getElementById('timer-week-bars').innerHTML = html;
   document.getElementById('timer-week-total').textContent = totalMin + ' 分钟';
   bindWeekBarTips();
-  // 今日时长（11-03 二连：仿总计学习时长格式——优先小时数+括号分钟小字，位置在计时器上方；分钟变化才写 DOM）
+  // 今日时长（11-03 二连：仿总计学习时长格式——优先小时数+括号分钟小字；11-04 修复：floor→round 统一四舍五入口径，与柱图/统计/分段明细一致——floor 会在 44'15 时显示 44 而统计侧 round 显示 45）
   const daySec = getTodaySegments().reduce((s, x) => s + x.duration, 0) + (timerRunning ? liveElapsedSec() : 0);
-  const dh = daySec / 3600, dm = Math.floor(daySec / 60);
+  const dh = daySec / 3600, dm = Math.round(daySec / 60);
   const dHtml = dh >= 1 ? dh.toFixed(1) + '小时<span class="min-sub">（' + dm + '分钟）</span>' : dm + '分钟';
   const numEl = document.getElementById('timer-today-num');
   if (numEl && numEl.dataset.lastHtml !== dHtml) { numEl.innerHTML = dHtml; numEl.dataset.lastHtml = dHtml; }
@@ -2832,8 +2858,9 @@ function renderStats() {
     if (segs.length) {
       html += `<div class="section-label" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">${L.seg_detail || '分段明细'}<button id="segEditBtn" onclick="toggleSegEdit()" style="font-size:11px;padding:2px 10px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-mid);cursor:pointer">${window.__segEdit?'完成':'编辑'}</button></div>`;
       html += segs.map((s, idx) => {
-        const del = window.__segEdit ? `<button onclick="delSeg(${idx})" title="删除该段" style="width:22px;height:22px;border-radius:50%;border:1.5px solid #e5484d;color:#e5484d;background:transparent;cursor:pointer;font-size:14px;line-height:1;flex:none;margin-left:8px">−</button>` : '';
-        return `<div class="stat-row" style="${window.__segEdit?'border:1px dashed var(--border);padding:6px 8px':''}"><span style="display:flex;align-items:center;gap:6px;min-width:0">${window.__segEdit?del:''}${s.subject ? '[' + s.subject + ']' : ''}</span><b>${fmtMin(s.duration)}</b></div>`;
+        const del = window.__segEdit ? `<button onclick="delSeg(${idx})" title="删除该段" style="width:22px;height:22px;border-radius:50%;border:1.5px solid #e5484d;color:#e5484d;background:transparent;cursor:pointer;font-size:14px;line-height:1;flex:none">−</button>` : '';
+        const bump = window.__segEdit ? `<button onclick="bumpSeg(${idx})" title="补 1 分钟（学习没计时的找补）" style="width:22px;height:22px;border-radius:50%;border:1.5px solid #58cc02;color:#58cc02;background:transparent;cursor:pointer;font-size:14px;line-height:1;flex:none">＋</button>` : '';
+        return `<div class="stat-row" style="${window.__segEdit?'border:1px dashed var(--border);padding:6px 8px':''}"><span style="display:flex;align-items:center;gap:6px;min-width:0">${window.__segEdit?bump+del:''}${s.subject ? '[' + s.subject + ']' : ''}</span><b>${fmtMin(s.duration)}</b></div>`;
       }).join('');
     }
     if (liveSec > 0) {
