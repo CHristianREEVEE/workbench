@@ -2753,7 +2753,13 @@ function renderHeat() {
     html = '<div style="display:flex;gap:' + gap + 'px;min-width:max-content">' +
       '<div><div style="display:flex;gap:' + gap + 'px;margin-bottom:3px">' + mrow + '</div>' +
       '<div style="display:flex;gap:' + gap + 'px">' + colsHtml + '</div></div></div>';
-    labelText = '总览 · ' + keys.length + ' 天里学了 ' + fmtMin(total);
+    // 口径对齐（TA 11-06 点单「与总时长和总日期对齐」）：天数=全期跨度（首条记录日→今天），
+    // 与总时长同口径；日期范围显式展示。旧口径「有记录的天数」与 8月→11月的日期范围对不上
+    const firstDs = keys.length ? keys[0] : todayStr;
+    const spanDays = Math.round((end - new Date(firstDs + 'T00:00:00')) / 86400000) + 1;
+    labelText = keys.length
+      ? '总览 · ' + firstDs.slice(5).replace('-', '/') + ' - ' + todayStr.slice(5).replace('-', '/') + ' · ' + spanDays + ' 天里学了 ' + fmtMin(total)
+      : '总览 · 0 天里学了 ' + fmtMin(total);
   }
   wrap.innerHTML = html;
   document.getElementById('heat-label').textContent = labelText;
