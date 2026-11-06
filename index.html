@@ -605,8 +605,6 @@
   .ce.sel { border-color: var(--accent); background: var(--accent-glow); }
   .cm { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text-mid); font-size: 14px; padding: 10px 0; cursor: pointer; }
   .cm.sel { border-color: var(--accent); background: var(--accent-glow); color: var(--text); font-weight: 600; }
-  .hm-mode { background: var(--bg-2); border: 1px solid var(--border); border-radius: 999px; color: var(--text-mid); font-size: 12px; padding: 6px 16px; cursor: pointer; transition: all .15s ease; }
-  .hm-mode.sel { border-color: var(--accent); background: var(--accent-glow); color: var(--text); font-weight: 600; }
   .hmcol { display: flex; flex-direction: column; gap: 3px; }
   .hmc { width: 13px; height: 13px; border-radius: 3px; cursor: pointer; flex-shrink: 0; }
   .hmc.sel { outline: 2px solid rgba(255,255,255,.92); outline-offset: 1px; } /* 点击选中高亮环（积分面板同族样式） */
@@ -884,18 +882,12 @@
       <button class="btn btn-outline" style="flex:1" onclick="showTaskChart('pie')">🥧 饼状图</button>
     </div>
   </section>
-  <!-- 努力全景（学习热力图：月视图/总览，点格子跳当天统计） -->
+  <!-- 努力全景（学习热力图：全期总览，点格子跳当天统计；11-06 TA 点单删月视图只留总览） -->
   <section>
     <div class="card">
       <div class="card-title">💪 努力全景</div>
-      <div style="display:flex;gap:6px;margin-bottom:10px">
-        <button class="hm-mode sel" data-m="month" onclick="setHeatMode('month')">📅 月</button>
-        <button class="hm-mode" data-m="all" onclick="setHeatMode('all')">总览</button>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <button class="btn btn-sm btn-outline" style="min-width:36px" onclick="shiftHeatMonth(-1)" id="heat-prev">◀</button>
-        <span id="heat-label" style="font-size:13px;color:var(--text-mid)">本月</span>
-        <button class="btn btn-sm btn-outline" style="min-width:36px" onclick="shiftHeatMonth(1)" id="heat-next">▶</button>
+      <div style="margin-bottom:10px">
+        <span id="heat-label" style="font-size:13px;color:var(--text-mid)">总览</span>
       </div>
       <div id="heat-wrap" style="overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;padding-bottom:4px"></div>
       <div style="display:flex;justify-content:flex-end;align-items:center;gap:4px;margin-top:6px">
@@ -1608,7 +1600,8 @@ function bindWeekBarTips() {
   });
 }
 // 总计学习时长：全期累计（口径与统计一致，manual_time 覆盖优先）+ 网课存量（不挂日期，只进总数）
-function updateStudyTotal() {
+// 11-06 抽 getStudyTotalSec()：打卡卡与努力全景总览 label 共用同一口径，数字永远同源
+function getStudyTotalSec() {
   const data = DB.get('timer_segments', {});
   const overrides = DB.get('manual_time', {}) || {};
   const dates = new Set([...Object.keys(data), ...Object.keys(overrides)]);
@@ -1619,6 +1612,10 @@ function updateStudyTotal() {
   });
   totalSec += (DB.get('course_time', 0) || 0) * 60;   // 网课存量：不落任何一天，热力图/日周月统计/最长纪录均不受影响
   if (timerRunning) totalSec += liveElapsedSec(); // 进行中的时间实时计入总数（暂停不涨）
+  return totalSec;
+}
+function updateStudyTotal() {
+  const totalSec = getStudyTotalSec();
   const el = document.getElementById('study-total');
   if (!el) return;
   // 小时正常字体，括号分钟缩小变细（.min-sub）
@@ -2660,8 +2657,7 @@ function renderChart() {
 }
 function closeChartModal() { document.getElementById('chart-overlay').classList.remove('show'); }
 
-// ====== 努力全景（学习热力图：月视图/总览，点格子跳当天统计）======
-let heatMode = 'month', heatMonthOffset = 0;
+// ====== 努力全景（学习热力图：全期总览，点格子跳当天统计；11-06 TA 点单删月视图）======
 // 与积分面板同款（TA 2026-09-30 拍板「和积分消耗一样简单明了」）：离散5档 + 按当前视图峰值线性四等分——
 // 峰值日独占最亮色一眼跳出；旧固定阈值版（<30分/<1时/<2时）长尾全挤同档，分位版/渐变版均废弃
 const HEAT_COLORS = ['rgba(255,255,255,0.07)', '#223a5e', '#33568c', '#4f7cff', '#8fb7ff'];
@@ -2685,47 +2681,15 @@ function heatCell(ds, sec, size) {
   const label = ds.slice(5).replace('-', '/') + ' ' + (sec ? fmtMin(sec) : '无记录');
   return '<div class="hmc" data-ds="' + ds + '" style="width:' + size + 'px;height:' + size + 'px;background:' + heatColor(sec) + '" title="' + label + '" onclick="heatJump(\'' + ds + '\')"></div>';
 }
-function setHeatMode(m) {
-  heatMode = m;
-  document.querySelectorAll('.hm-mode').forEach(b => b.classList.toggle('sel', b.getAttribute('data-m') === m));
-  const isMonth = m === 'month';
-  document.getElementById('heat-prev').style.visibility = isMonth ? 'visible' : 'hidden';
-  document.getElementById('heat-next').style.visibility = isMonth ? 'visible' : 'hidden';
-  renderHeat();
-}
+function setHeatMode(m) { /* 11-06 TA 点单删月视图：模式切换废弃，保留空函数防旧缓存 onclick 报错 */ }
 function renderHeat() {
   const wrap = document.getElementById('heat-wrap');
   if (!wrap) return;
   const data = getHeatData();
   const todayStr = today();
   let html = '', labelText = '';
-  if (heatMode === 'month') {
-    // 平铺格子：1号开头每行7个排满，无日历式补位空格；无记录=无颜色（透明）
-    const now = new Date();
-    const base = new Date(now.getFullYear(), now.getMonth() + heatMonthOffset, 1);
-    const y = base.getFullYear(), m = base.getMonth();
-    const days = new Date(y, m + 1, 0).getDate();
-    const size = 22, gap = 4;
-    let monthSec = 0, cellsHtml = '';
-    heatMaxSec = 0;
-    for (let d = 1; d <= days; d++) { // 先扫一遍取本月峰值（连续渐变基准）
-      const ds = y + '-' + pad2(m + 1) + '-' + pad2(d);
-      heatMaxSec = Math.max(heatMaxSec, data[ds] || 0);
-    }
-    for (let d = 1; d <= days; d++) {
-      const ds = y + '-' + pad2(m + 1) + '-' + pad2(d);
-      const sec = data[ds] || 0;
-      monthSec += sec;
-      const label = ds.slice(5).replace('-', '/') + ' ' + (sec ? fmtMin(sec) : '无记录');
-      const bg = 'background:' + heatColor(sec);
-      cellsHtml += '<div class="hmc" data-ds="' + ds + '" style="width:' + size + 'px;height:' + size + 'px;' + bg + '" title="' + label + '" onclick="heatJump(\'' + ds + '\')"></div>';
-    }
-    html = '<div style="display:grid;grid-template-columns:repeat(7,' + size + 'px);gap:' + gap + 'px;justify-content:center">' + cellsHtml + '</div>';
-    labelText = y + '年' + (m + 1) + '月 · ' + (heatMonthOffset === 0 ? '本月 ' : '') + fmtMin(monthSec);
-    document.getElementById('heat-next').style.visibility = heatMonthOffset >= 0 ? 'hidden' : 'visible';
-    document.getElementById('heat-prev').style.visibility = heatMonthOffset <= minHeatOffset() ? 'hidden' : 'visible';
-  } else {
-    // 总览：从首条记录的周一到本周，月标签行 + 周列（13px 小格子，横向滚动）
+  // 总览（唯一模式）：从首条记录的周一到本周，月标签行 + 周列（13px 小格子，横向滚动）
+  {
     const keys = Object.keys(data).sort();
     heatMaxSec = keys.reduce((mx, k) => Math.max(mx, data[k] || 0), 0); // 全期峰值=总览渐变基准
     let start = keys.length ? new Date(keys[0] + 'T00:00:00') : new Date(Date.now() - 35 * 86400000);
@@ -2733,7 +2697,7 @@ function renderHeat() {
     start.setDate(start.getDate() - (start.getDay() + 6) % 7);
     const end = new Date(); end.setHours(0, 0, 0, 0);
     const size = 13, gap = 3;
-    let total = 0, colsHtml = '', mrow = '';
+    let colsHtml = '', mrow = '';
     let lastM = -1;
     const cur = new Date(start);
     while (cur <= end) {
@@ -2744,7 +2708,6 @@ function renderHeat() {
       for (let r = 0; r < 7; r++) {
         const ds = cur.getFullYear() + '-' + pad2(cur.getMonth() + 1) + '-' + pad2(cur.getDate());
         const sec = data[ds] || 0;
-        total += sec;
         colCells += heatCell(ds, sec, size);
         cur.setDate(cur.getDate() + 1);
       }
@@ -2753,17 +2716,14 @@ function renderHeat() {
     html = '<div style="display:flex;gap:' + gap + 'px;min-width:max-content">' +
       '<div><div style="display:flex;gap:' + gap + 'px;margin-bottom:3px">' + mrow + '</div>' +
       '<div style="display:flex;gap:' + gap + 'px">' + colsHtml + '</div></div></div>';
-    // 口径对齐（TA 11-06 点单「与总时长和总日期对齐」）：天数=全期跨度（首条记录日→今天），
-    // 与总时长同口径；日期范围显式展示。旧口径「有记录的天数」与 8月→11月的日期范围对不上
-    const firstDs = keys.length ? keys[0] : todayStr;
-    const spanDays = Math.round((end - new Date(firstDs + 'T00:00:00')) / 86400000) + 1;
-    labelText = keys.length
-      ? '总览 · ' + firstDs.slice(5).replace('-', '/') + ' - ' + todayStr.slice(5).replace('-', '/') + ' · ' + spanDays + ' 天里学了 ' + fmtMin(total)
-      : '总览 · 0 天里学了 ' + fmtMin(total);
+    // 口径对齐（TA 11-06 三连点单「66 天/打卡时间/与总时长对齐」）：天数=打卡卡「累计打卡」，
+    // 时长=打卡卡「总计学习时长」同款口径（全期累计+manual_time 覆盖+网课存量+进行中）——两个数永远同源
+    const checkinDays = getCheckins().length;
+    labelText = '总览 · ' + checkinDays + ' 天里学了 ' + fmtMin(getStudyTotalSec());
   }
   wrap.innerHTML = html;
   document.getElementById('heat-label').textContent = labelText;
-  // 选中恢复：翻月/切模式重渲染后，选中日若在当前视图内则重新圈上
+  // 选中恢复：重渲染后选中日若在当前视图内则重新圈上
   if (heatSel) {
     const el = wrap.querySelector('.hmc[data-ds="' + heatSel + '"]');
     if (el) el.classList.add('sel');
@@ -2772,17 +2732,6 @@ function renderHeat() {
   if (legend && !legend.childElementCount) {
     legend.innerHTML = HEAT_COLORS.map(c => '<div style="width:12px;height:12px;border-radius:3px;background:' + c + '"></div>').join('');
   }
-}
-function minHeatOffset() {
-  // 最早 2026年8月（TA 8月才开始学习），再往前不给翻
-  const now = new Date();
-  return -((now.getFullYear() - 2026) * 12 + (now.getMonth() - 7));
-}
-function shiftHeatMonth(delta) {
-  const next = heatMonthOffset + delta;
-  if (next > 0 || next < minHeatOffset()) return;
-  heatMonthOffset = next;
-  renderHeat();
 }
 let heatSel = null; // 当前选中日（点击圈高亮，再点同格取消）
 function heatJump(ds) {
