@@ -1115,6 +1115,7 @@ const DB = {
 const SYNC = {
   key: '04aaf059e163090a20326ad431957248',
   url: 'https://wb.reeve10001.top/wbsync/api/',
+  ver: 0,         // 云端数据版本号（2026-11-07 版本闸）：pull 时更新，push 携带 bv；服务端落后即 409 拒绝——旧设备再也盖不掉云端新数据
   dirty: {},      // 待推送的键
   timer: null,
   mark(key, val) {               // DB.set 后调用：记脏+防抖推送
@@ -1126,18 +1127,26 @@ const SYNC = {
     clearTimeout(this.timer);
     this.push();
   },
-  async push() {
+  async push(isRetry) {
     const d = this.dirty; this.dirty = {};
     if (!Object.keys(d).length) return;
     try {
       // mode=replace：用户操作产生的最新状态，数组类直接替换云端（否则服务端并集合并会让"取消打卡"等删除操作永不生效）
-      await fetch(this.url + 'sync?k=' + this.key + '&mode=replace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) });
+      const r = await fetch(this.url + 'sync?k=' + this.key + '&mode=replace&bv=' + (this.ver || 0), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) });
+      if (r.status === 409 && !isRetry) {
+        // 版本落后：云端有更新的数据，先拉合并再重推一次（限一次防循环）
+        for (const k in d) this.dirty[k] = d[k];
+        await this.pull();
+        this.timer = setTimeout(() => this.push(true), 800);
+        return;
+      }
+      try { const j = await r.json(); if (j && j.ver) this.ver = j.ver; } catch (e) {}
     } catch (e) {
       for (const k in d) this.dirty[k] = d[k];
       this.timer = setTimeout(() => this.push(), 15000);  // 失败回滚+重排重试（原版回滚后无重试，数据会卡死到下次操作）
     }
   },
-  async pushAll() {   // 全量对账：把本地所有数据整体推上云端（拉取合并后调用，两边收敛一致）
+  async pushAll(isRetry) {   // 全量对账：把本地所有数据整体推上云端（拉取合并后调用，两边收敛一致）
     const payload = {};
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
@@ -1146,7 +1155,11 @@ const SYNC = {
     const cfgRaw = localStorage.getItem('workbench_config');
     if (cfgRaw) { try { payload.workbench_config = JSON.parse(cfgRaw); } catch (e) {} }
     if (!Object.keys(payload).length) return;
-    try { await fetch(this.url + 'sync?k=' + this.key, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); } catch (e) {}
+    try {
+      const r = await fetch(this.url + 'sync?k=' + this.key + '&bv=' + (this.ver || 0), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (r.status === 409 && !isRetry) { await this.pull(); return this.pushAll(true); }  // 版本落后：拉最新合并后重推一次
+      try { const j = await r.json(); if (j && j.ver) this.ver = j.ver; } catch (e) {}
+    } catch (e) {}
   },
   async pull() {                 // 启动时拉云端全量，合并进本地
     try {
@@ -1154,6 +1167,7 @@ const SYNC = {
       if (r.status === 401 || r.status === 403) throw new Error('unauthorized');   // 2026-10-19：鉴权失败显式抛错，不再静默 return false 冒充「本地即最新」
       const j = await r.json();
       if (!j.ok || !j.data) return false;
+      this.ver = j.ver || 0;   // 记录云端版本号：push 带 bv，落后即被服务端 409 拒绝
       const local = {};
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
