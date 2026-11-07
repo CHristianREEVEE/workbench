@@ -1094,6 +1094,14 @@
 </div>
 
 <script>
+// ====== 急救通道：?reset=1 清空本地账本重拉云端（多端锁死旧账时的逃生舱）======
+// 必须在一切 DB/SYNC 读取前执行；清完立即抹掉 URL 参数，防后续操作误清
+try {
+  if (location.search.indexOf('reset=1') !== -1) {
+    Object.keys(localStorage).filter(k => k.indexOf('wb_') === 0 || k === 'workbench_config').forEach(k => localStorage.removeItem(k));
+    try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  }
+} catch (e) {}
 // ====== Storage ======
 const DB = {
   get(key, def) {
