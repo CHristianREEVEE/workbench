@@ -1224,6 +1224,7 @@ const SYNC = {
       const ts = localStorage.getItem('wb_timer_state');
       if (ts) { try { const t = JSON.parse(ts); const lo = 1577836800000, hi = Date.now() + 60000;
         if (t.start && (t.start < lo || t.start > hi)) { localStorage.setItem('wb_timer_state', JSON.stringify({ running: false, start: 0 })); } } catch {} }
+      try { localStorage.setItem('wb_last_sync', String(Date.now())); } catch {}   // 同步时间戳：总时长旁可见，多端排查一眼定
       return changed;
     } catch (e) { return false; }
   }
@@ -1618,11 +1619,14 @@ function updateStudyTotal() {
   const totalSec = getStudyTotalSec();
   const el = document.getElementById('study-total');
   if (!el) return;
-  // 小时正常字体，括号分钟缩小变细（.min-sub）
+  // 小时正常字体，括号分钟缩小变细（.min-sub）+ 同步时间戳（多端一致性肉眼可见）
   const h = totalSec / 3600, m = Math.round(totalSec / 60);
+  let stamp = '';
+  try { const ls = localStorage.getItem('wb_last_sync');
+    if (ls) stamp = '<span class="min-sub"> · 同步 ' + new Date(+ls).toTimeString().slice(0,5) + '</span>'; } catch {}
   const html = h >= 1
-    ? h.toFixed(1) + '小时<span class="min-sub">（' + m + '分钟）</span>'
-    : m + '分钟';
+    ? h.toFixed(1) + '小时<span class="min-sub">（' + m + '分钟）</span>' + stamp
+    : m + '分钟' + stamp;
   if (el.dataset.lastHtml !== html) { el.innerHTML = html; el.dataset.lastHtml = html; } // 秒级tick只在实际变化时写DOM
   updateCourseTotal();
 }
@@ -3008,10 +3012,16 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 // ====== 手动刷新（标题栏 🔄）：拉云端最新→合并→重渲染 ======
-async function refreshApp(btn) {
+async function refreshApp(btn, silent) {
   if (btn) { btn.classList.add('spinning'); btn.disabled = true; }
   try {
     const n = await SYNC.pull();
+    if (n === false) {   // 云端不可达：绝不推送（旧数据覆盖云端=11-07 三端横跳事故的机制）
+      if (!silent) toast('⚠️ 云端暂不可达：已跳过推送，防旧数据覆盖');
+      if (btn) { btn.classList.remove('spinning'); btn.disabled = false; }
+      return;
+    }
+    const stamp = (() => { try { const ls = localStorage.getItem('wb_last_sync'); return ls ? ' · 同步 ' + new Date(+ls).toTimeString().slice(0,5) : ''; } catch { return ''; } })();
     if (n) {
       try {
         const fresh = JSON.parse(localStorage.getItem('workbench_config') || '{}');
@@ -3019,20 +3029,33 @@ async function refreshApp(btn) {
         Object.assign(CFG, fresh);
       } catch (e) {}
       try { renderTabs(); renderMotto(); renderTasks(); renderStats(); renderHeat(); renderMemos(); updateCheckinUI(); updateTimerCount(); updateStudyTotal(); drawWheel(); } catch (e) {}
-      toast('🔄 已刷新：云端合并 ' + n + ' 条数据');
+      toast((silent ? '☁️ 已自动同步 ' : '🔄 已刷新：云端合并 ') + n + ' 条数据' + stamp);
     } else {
-      toast('🔄 已刷新：本地即最新');
+      if (!silent) toast('🔄 已刷新：本地即最新' + stamp);
     }
     SYNC.pushAll();
   } catch (e) {
-    toast('⚠️ 刷新失败：云端暂不可达');
+    if (!silent) toast('⚠️ 刷新失败：云端暂不可达');
   }
   if (btn) { btn.classList.remove('spinning'); btn.disabled = false; }
 }
+// 回前台自动对账（60s 节流）：PWA 常驻窗口快照滞后的根治——切回来就拉云端，有变化才提示
+let _lastAutoSync = Date.now();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  const now = Date.now();
+  if (now - _lastAutoSync < 60000) return;
+  _lastAutoSync = now;
+  if (typeof SYNC !== 'undefined' && typeof refreshApp === 'function') { try { refreshApp(null, true); } catch (e) {} }
+});
 
 // ====== 云同步：加载时拉云端合并，有更新则刷新界面；再全量对账推送（历史数据兜底上云）======
 (async () => {
   const n = await SYNC.pull();
+  if (n === false) {   // 云端不可达：绝不 pushAll（旧本地数据覆盖云端=11-07 多端横跳事故根源）
+    toast('⚠️ 云端暂不可达：本次仅用本地数据，未推送');
+    return;
+  }
   if (n) {
     // 云端合并进 localStorage 后，把最新配置刷进运行中的 CFG 再重渲染
     try {
