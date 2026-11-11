@@ -1308,6 +1308,7 @@ function toggleCheckin() {
     document.getElementById('checkin-btn').textContent = '已打卡';
   }
   DB.set('checkins', checkins);
+  SYNC.flushNow();  // 11-11 iPad 分叉案：打卡改即时上云——2s 防抖 push 会被「打卡后秒切后台」的 PWA 冻结掐死（iPad 三天打卡全丢此通道：本地 70 云端 67）
   updateCheckinUI();
 }
 function updateCheckinUI() {
