@@ -779,6 +779,7 @@
   <button class="wallpaper-btn" id="undoBtn" onclick="wbUndo()" title="撤回最近操作" style="display:none">↩️</button>
   <button class="wallpaper-btn" onclick="openWallpaperModal()" title="壁纸设置">👕</button>
   <button class="motto-edit-btn" onclick="openMottoModal()" title="修改格言" aria-label="修改格言"><span class="orb"></span></button>
+  <span id="sync-dot" title="云端同步：✓ 已同步" style="position:absolute;top:10px;right:14px;z-index:101;display:block;width:8px;height:8px;border-radius:50%;background:#67c23a;box-shadow:0 0 3px rgba(0,0,0,.35);cursor:default"></span>
   <button class="wallpaper-btn" id="refresh-btn" onclick="refreshApp(this)" title="拉取云端最新数据并刷新" aria-label="刷新">🔄</button>
 </header>
 
@@ -1120,6 +1121,7 @@ const SYNC = {
   timer: null,
   mark(key, val) {               // DB.set 后调用：记脏+防抖推送
     this.dirty[key] = val;
+    this._setState('pending');
     clearTimeout(this.timer);
     this.timer = setTimeout(() => this.push(), 2000);
   },
@@ -1127,12 +1129,30 @@ const SYNC = {
     clearTimeout(this.timer);
     this.push();
   },
+  state: 'ok',                    // 11-11 同步硬化（iPad 分叉案后 TA 定性「多端同步像狗屎」）：ok|pending|syncing|error——失败不再静默
+  _setState(s) {
+    this.state = s;
+    const el = document.getElementById('sync-dot');
+    if (!el) return;
+    const M = { ok: ['#67c23a', '✓ 已同步'], pending: ['#e6a23c', '待上传'], syncing: ['#409eff', '同步中'], error: ['#f56c6c', '同步失败，将自动重试'] };
+    el.style.background = (M[s] || M.ok)[0];
+    el.title = '云端同步：' + (M[s] || M.ok)[1];
+  },
+  reconcile() {                   // 打开即对账（参考 VMS Port release 收敛语义）：pull 合并云端→本地积压脏数据补推——长冻结会话/离线期的分叉窗口压到打开瞬间
+    if (this._busy) return;
+    this._busy = true;
+    this.pull().finally(() => {
+      this._busy = false;
+      if (Object.keys(this.dirty).length) this.push();
+    });
+  },
   async push(isRetry) {
     const d = this.dirty; this.dirty = {};
     if (!Object.keys(d).length) return;
+    this._setState('syncing');
     try {
       // mode=replace：用户操作产生的最新状态，数组类直接替换云端（否则服务端并集合并会让"取消打卡"等删除操作永不生效）
-      const r = await fetch(this.url + 'sync?k=' + this.key + '&mode=replace&bv=' + (this.ver || 0), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) });
+      const r = await fetch(this.url + 'sync?k=' + this.key + '&mode=replace&bv=' + (this.ver || 0), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d), keepalive: true });  // keepalive：冻结/卸载在途也保送达（11-11 僵尸段案）
       if (r.status === 409 && !isRetry) {
         // 版本落后：云端有更新的数据，先拉合并再重推一次（限一次防循环）
         for (const k in d) this.dirty[k] = d[k];
@@ -1140,8 +1160,9 @@ const SYNC = {
         this.timer = setTimeout(() => this.push(true), 800);
         return;
       }
-      try { const j = await r.json(); if (j && j.ver) this.ver = j.ver; } catch (e) {}
+      try { const j = await r.json(); if (j && j.ver) this.ver = j.ver; this._setState('ok'); } catch (e) {}
     } catch (e) {
+      this._setState('error');
       for (const k in d) this.dirty[k] = d[k];
       this.timer = setTimeout(() => this.push(), 15000);  // 失败回滚+重排重试（原版回滚后无重试，数据会卡死到下次操作）
     }
@@ -1150,6 +1171,7 @@ const SYNC = {
     const payload = {};
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
+      if (k === 'wb_timer_state') continue;  // 11-11 timer_state 排除出对账推送：防陈旧端反向污染（pull 云端权威，操作走即时 flush 通道）
       if (k.startsWith('wb_')) { try { payload[k.slice(3)] = JSON.parse(localStorage.getItem(k)); } catch (e) {} }
     }
     const cfgRaw = localStorage.getItem('workbench_config');
@@ -3033,6 +3055,43 @@ document.addEventListener('visibilitychange', async () => {
     }
   } catch (e) {}
 });
+
+// 11-11 同步硬化（wb 第 132 次迭代·参考 VMS Port skill 可取之处）：三时机自动对账——
+// 切前台/网络恢复/窗口获焦（30s 节流防抖）+ 前台 5 分钟兜底——「打开工作台的瞬间数据自动上云」
+// （锁屏后台自动传输 PWA 做不到：系统冻结网页 JS；打开瞬间对账已覆盖真实使用路径）
+(function () {
+  let last = 0;
+  const go = () => { const n = Date.now(); if (n - last < 30000) return; last = n; SYNC.reconcile(); };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) go(); });
+  window.addEventListener('online', () => { last = 0; go(); });
+  window.addEventListener('focus', () => go());
+  setInterval(() => { if (!document.hidden) go(); }, 300000);
+})();
+
+// 11-11 发布到手机：安装引导（iOS 无安装 API → 底部横幅引导「分享▸添加到主屏幕」；Android → beforeinstallprompt 拦截+自定义安装键）
+// dismiss 存 localStorage 不再打扰；已安装（standalone）全静默
+(function () {
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (standalone) return;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  let deferred = null;
+  function showBanner() {
+    if (document.getElementById('pwa-install-tip')) return;
+    if (localStorage.getItem('wb_install_tip_dismissed')) return;
+    const tip = document.createElement('div');
+    tip.id = 'pwa-install-tip';
+    tip.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:9999;background:rgba(26,23,33,.94);color:#fff;padding:10px 16px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,.4);max-width:92vw';
+    tip.innerHTML = (isIOS
+      ? '<span>📲 装到手机：分享 ▸ <b>添加到主屏幕</b>，全屏像 App</span>'
+      : '<span>📲 工作台可装到手机</span><button id="pwa-install-btn" style="background:#67c23a;color:#fff;border:0;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer">安装</button>')
+      + '<span style="cursor:pointer;opacity:.55;padding:0 2px;font-size:14px" onclick="localStorage.setItem(\'wb_install_tip_dismissed\',\'1\');this.parentNode.remove()">✕</span>';
+    document.body.appendChild(tip);
+    const btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.onclick = async () => { if (!deferred) return; deferred.prompt(); const c = await deferred.userChoice; if (c && c.outcome === 'accepted') tip.remove(); };
+  }
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; showBanner(); });
+  if (isIOS) setTimeout(showBanner, 1500);  // iOS 无事件可等，首次访问延时提示
+})();
 
 // ====== 手动刷新（标题栏 🔄）：拉云端最新→合并→重渲染 ======
 async function refreshApp(btn, silent) {
