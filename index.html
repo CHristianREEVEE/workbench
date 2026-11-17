@@ -586,6 +586,7 @@
     justify-content: center;
   }
   .modal-overlay.show { display: flex; }
+  body:has(.modal-overlay.show) #pwa-install-tip { display: none !important; }
   .modal {
     background: var(--bg-2);
     border-radius: 20px 20px 0 0;
