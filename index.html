@@ -2589,14 +2589,14 @@ function chartPeriodLabel() {
   return statsMonthOffset === 0 ? '本月' : statsMonthOffset === -1 ? '上月' : '前' + (-statsMonthOffset) + '个月';
 }
 function getCategoryStats() {
-  // 只统计时间：每科目在该周期内的计时秒数（segments 带 subject 归科；manual_time 覆盖日无科目细分，归未分类）
-  const dates = getChartDates();
+  // 全量统计：所有时间段各科目的计时秒数（2026-11-17 TA 点单：图表改成全期口径；segments 带 subject 归科；manual_time 覆盖日无科目细分，归未分类——覆盖优先）
   const data = DB.get('timer_segments', {}) || {};
   const overrides = DB.get('manual_time', {}) || {};
   const bySubj = {};
-  dates.forEach(d => {
+  const allDates = new Set([...Object.keys(data), ...Object.keys(overrides)]);
+  allDates.forEach(d => {
     if (overrides[d] !== undefined) {
-      bySubj['未分类'] = (bySubj['未分类'] || 0) + overrides[d] * 60;
+      bySubj['未分类'] = (bySubj['未分类'] || 0) + (overrides[d] || 0) * 60;
     } else {
       (data[d] || []).forEach(s => {
         const k = s.subject || '未分类';
@@ -2604,8 +2604,8 @@ function getCategoryStats() {
       });
     }
   });
-  // 进行中的计时也归入今天（若今天在统计范围内）
-  if (timerRunning && dates.includes(today())) {
+  // 进行中的计时也归入
+  if (timerRunning) {
     const k = timerSubject || '未分类';
     bySubj[k] = (bySubj[k] || 0) + liveElapsedSec();
   }
@@ -2616,7 +2616,7 @@ function getCategoryStats() {
 }
 function buildBarSVG(cats) {
   const shown = cats.filter(c => c.sec > 0);
-  if (!shown.length) return '<div style="text-align:center;padding:30px 0;color:var(--text-mid);font-size:14px">该周期暂无学习记录</div>';
+  if (!shown.length) return '<div style="text-align:center;padding:30px 0;color:var(--text-mid);font-size:14px">暂无学习记录</div>';
   const maxV = Math.max(...shown.map(c => c.sec));
   const W = 340, labelW = 78, valW = 118, rowH = 40, H = shown.length * rowH + 16;
   let rows = '';
@@ -2633,7 +2633,7 @@ function buildBarSVG(cats) {
 const PIE_COLORS = ['#e08e94', '#9fd4bd', '#6496a8', '#d4bc7e', '#b79de0', '#84a9de', '#e0987e', '#a2c9a5'];
 function buildPieSVG(cats) {
   const shown = cats.filter(c => c.sec > 0);
-  if (!shown.length) return '<div style="text-align:center;padding:30px 0;color:var(--text-mid);font-size:14px">该周期暂无学习记录</div>';
+  if (!shown.length) return '<div style="text-align:center;padding:30px 0;color:var(--text-mid);font-size:14px">暂无学习记录</div>';
   const total = shown.reduce((s, c) => s + c.sec, 0);
   const W = 340, cx = 170, cy = 112, r = 84;
   const polar = (rr, ang) => [cx + rr * Math.cos(ang), cy + rr * Math.sin(ang)];
@@ -2698,11 +2698,11 @@ function shiftChartPeriod(delta) {
 }
 function renderChart() {
   const cats = getCategoryStats();
-  document.getElementById('chart-title').textContent = '各科学习时长 · ' + chartPeriodLabel();
+  document.getElementById('chart-title').textContent = '各科学习时长 · 全部时段';
   document.getElementById('chart-svg-wrap').innerHTML = chartType === 'pie' ? buildPieSVG(cats) : buildBarSVG(cats);
-  // 到达当前周期（今日/本周/本月）后右箭头隐藏——不能翻到未来
-  const atNow = (statTab === 'day' && statsDayOffset === 0) || (statTab === 'week' && statsWeekOffset === 0) || (statTab === 'month' && statsMonthOffset === 0);
-  document.getElementById('chart-next').style.visibility = atNow ? 'hidden' : 'visible';
+  // 全量口径无周期可翻（2026-11-17 改全期统计）——翻页箭头隐藏
+  document.getElementById('chart-prev').style.display = 'none';
+  document.getElementById('chart-next').style.display = 'none';
 }
 function closeChartModal() { document.getElementById('chart-overlay').classList.remove('show'); }
 
