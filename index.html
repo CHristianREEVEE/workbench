@@ -2670,7 +2670,7 @@ function buildPieSVG(cats) {
       marks.push({ side, ex, ey, jx, y: cy + sn * (r + 10), label: esc(c.label) + ' ' + min + '分' });
     });
     // 每侧垂直阶梯防重叠（间隔 18px，side=0 中列 20px 更宽+左右交错）+双向钳制防底部堆积钳断间隔
-    const clampY = v => Math.max(24, Math.min(218, v));
+    const clampY = v => Math.max(19, Math.min(218, v));
     [1, -1, 0].forEach(sd => {
       const gap = sd === 0 ? 22 : 18;
       const grp = marks.filter(m => m.side === sd).sort((a, b) => a.y - b.y);
@@ -2679,12 +2679,12 @@ function buildPieSVG(cats) {
       grp.forEach(m => { m.ly = Math.max(m.y, prev + gap); prev = m.ly; });
       grp[grp.length - 1].ly = clampY(grp[grp.length - 1].ly);
       for (let k = grp.length - 2; k >= 0; k--) grp[k].ly = Math.min(grp[k].ly, grp[k + 1].ly - gap);
-      if (grp[0].ly < 24) {
-        grp[0].ly = 24;
+      if (grp[0].ly < 19) {
+        grp[0].ly = 19;
         for (let k = 1; k < grp.length; k++) grp[k].ly = Math.max(grp[k].ly, grp[k - 1].ly + gap);
       }
       // side=0 相邻标注 x 交错（±45px），防上下行文字挤同一 x 区间
-      grp.forEach((m, k) => { m.dx = k % 2 === 1 ? 58 * (k % 4 === 1 ? 1 : -1) : 0; });
+      grp.forEach((m, k) => { m.dx = k % 2 === 1 ? 92 * (k % 4 === 1 ? 1 : -1) : 0; });
     });
     marks.forEach(m => {
       const hx = m.side === 0 ? m.jx + (m.dx || 0) : m.jx + m.side * 22;
