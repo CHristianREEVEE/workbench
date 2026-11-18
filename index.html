@@ -2605,6 +2605,9 @@ function getCategoryStats() {
       });
     }
   });
+  // 网课存量：只进总数不落日期——与打卡卡「总计学习时长」同口径（2026-11-18 TA 报障：图表口径漏网课差 10h）
+  const courseMin = DB.get('course_time', 0) || 0;
+  if (courseMin > 0) bySubj['网课'] = (bySubj['网课'] || 0) + courseMin * 60;
   // 进行中的计时也归入
   if (timerRunning) {
     const k = timerSubject || '未分类';
@@ -2618,8 +2621,9 @@ function getCategoryStats() {
 function buildBarSVG(cats) {
   const shown = cats.filter(c => c.sec > 0);
   if (!shown.length) return '<div style="text-align:center;padding:30px 0;color:var(--text-mid);font-size:14px">暂无学习记录</div>';
+  const total = shown.reduce((s, c) => s + c.sec, 0);
   const maxV = Math.max(...shown.map(c => c.sec));
-  const W = 340, labelW = 78, valW = 118, rowH = 40, H = shown.length * rowH + 16;
+  const W = 340, labelW = 78, valW = 118, rowH = 40, H = shown.length * rowH + 44;
   let rows = '';
   shown.forEach((c, i) => {
     const y = i * rowH + 12;
@@ -2629,6 +2633,10 @@ function buildBarSVG(cats) {
       <rect x="${labelW}" y="${y}" width="${bw}" height="16" rx="8" fill="${CHART_COLORS[i % CHART_COLORS.length]}" opacity="0.9"/>
       <text x="${labelW + bw + 8}" y="${y + 13}" font-size="12" font-weight="600" fill="#e8e4ec">${fmtBar(c.sec)}</text>`;
   });
+  // 总计行（2026-11-18 TA 点单：柱状图补总时长，格式与饼图总计一致）
+  const totalY = shown.length * rowH + 28;
+  rows += `<line x1="${labelW - 60}" y1="${totalY - 14}" x2="${W - 8}" y2="${totalY - 14}" stroke="#3a3350" stroke-width="1"/>` +
+    `<text x="${W / 2}" y="${totalY}" text-anchor="middle" font-size="13" font-weight="700" fill="#e8e4ec">总计 ${fmtBar(total)}</text>`;
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">${rows}</svg>`;
 }
 const PIE_COLORS = ['#e08e94', '#9fd4bd', '#6496a8', '#d4bc7e', '#b79de0', '#84a9de', '#e0987e', '#a2c9a5'];
