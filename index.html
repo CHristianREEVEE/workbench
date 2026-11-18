@@ -2644,50 +2644,66 @@ function buildPieSVG(cats) {
   const shown = cats.filter(c => c.sec > 0);
   if (!shown.length) return '<div style="text-align:center;padding:30px 0;color:var(--text-mid);font-size:14px">暂无学习记录</div>';
   const total = shown.reduce((s, c) => s + c.sec, 0);
-  const W = 340, cx = 170, cy = 112, r = 84;
+  // W 340→420：给两侧引导线标注留出名称+数值空间（2026-11-18 TA 点单：每条引导线附科目名）
+  const W = 420, cx = 210, cy = 112, r = 84;
   const polar = (rr, ang) => [cx + rr * Math.cos(ang), cy + rr * Math.sin(ang)];
   let acc = -Math.PI / 2;
   let sectors = '', labels = '', leaders = '';
   if (shown.length === 1) {
-    // 单科独占整圆：circle 兜底（arc 会退化）
     sectors = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${PIE_COLORS[0]}" opacity="0.92"/>`;
     labels = `<text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="12" font-weight="600" fill="#23202b">${esc(shown[0].label)}</text>`;
-  } else shown.forEach((c, i) => {
-    const frac = c.sec / total;
-    const a0 = acc, a1 = acc + frac * 2 * Math.PI; acc = a1;
-    const am = (a0 + a1) / 2;
-    const [x1, y1] = polar(r, a0), [x2, y2] = polar(r, a1);
-    const large = (a1 - a0) > Math.PI ? 1 : 0;
-    const col = PIE_COLORS[i % PIE_COLORS.length];
-    sectors += `<path d="M${cx},${cy} L${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${large} 1 ${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="${col}" opacity="0.92"/>`;
-    // 扇区内写科目名（占比足够大才放，深色字压浅色扇区）
-    if (frac >= 0.13) {
-      const [lx, ly] = polar(r * 0.62, am);
-      labels += `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="600" fill="#23202b">${esc(c.label)}</text>`;
-    }
-    // 引导线：扇区边缘 → 外扩点 → 水平短线 → 数值（紧凑分钟，避免长标签溢出）
-    if (frac >= 0.07) {
+  } else {
+    const marks = [];
+    shown.forEach((c, i) => {
+      const frac = c.sec / total;
+      const a0 = acc, a1 = acc + frac * 2 * Math.PI; acc = a1;
+      const am = (a0 + a1) / 2;
+      const [x1, y1] = polar(r, a0), [x2, y2] = polar(r, a1);
+      const large = (a1 - a0) > Math.PI ? 1 : 0;
+      const col = PIE_COLORS[i % PIE_COLORS.length];
+      sectors += `<path d="M${cx},${cy} L${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${large} 1 ${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="${col}" opacity="0.92"/>`;
       const cs = Math.cos(am), sn = Math.sin(am);
-      const [ex, ey] = polar(r, am);
-      const [jx, jy] = polar(r + 9, am);
       const side = Math.abs(cs) < 0.35 ? 0 : (cs > 0 ? 1 : -1);
-      const hx = jx + side * 26;
-      leaders += `<polyline points="${ex.toFixed(1)},${ey.toFixed(1)} ${jx.toFixed(1)},${jy.toFixed(1)} ${hx.toFixed(1)},${jy.toFixed(1)}" fill="none" stroke="#6e6878" stroke-width="1"/>
-        <text x="${(hx + side * 5).toFixed(1)}" y="${(jy + 4).toFixed(1)}" text-anchor="${side === 0 ? 'middle' : (side > 0 ? 'start' : 'end')}" font-size="11" fill="#e8e4ec">${Math.round(c.sec / 60)}分钟</text>`;
-    }
-  });
-  // 总计 + 图例（参考图样式：百分比 | 色点 | 名称 …… 时长）
+      const min = Math.round(c.sec / 60);
+      const [ex, ey] = polar(r, am);
+      const jx = polar(r + 10, am)[0];
+      marks.push({ side, ex, ey, jx, y: cy + sn * (r + 10), label: esc(c.label) + ' ' + min + '分' });
+    });
+    // 每侧垂直阶梯防重叠（间隔 18px，side=0 中列 20px 更宽+左右交错）+双向钳制防底部堆积钳断间隔
+    const clampY = v => Math.max(24, Math.min(218, v));
+    [1, -1, 0].forEach(sd => {
+      const gap = sd === 0 ? 22 : 18;
+      const grp = marks.filter(m => m.side === sd).sort((a, b) => a.y - b.y);
+      if (!grp.length) return;
+      let prev = -999;
+      grp.forEach(m => { m.ly = Math.max(m.y, prev + gap); prev = m.ly; });
+      grp[grp.length - 1].ly = clampY(grp[grp.length - 1].ly);
+      for (let k = grp.length - 2; k >= 0; k--) grp[k].ly = Math.min(grp[k].ly, grp[k + 1].ly - gap);
+      if (grp[0].ly < 24) {
+        grp[0].ly = 24;
+        for (let k = 1; k < grp.length; k++) grp[k].ly = Math.max(grp[k].ly, grp[k - 1].ly + gap);
+      }
+      // side=0 相邻标注 x 交错（±45px），防上下行文字挤同一 x 区间
+      grp.forEach((m, k) => { m.dx = k % 2 === 1 ? 58 * (k % 4 === 1 ? 1 : -1) : 0; });
+    });
+    marks.forEach(m => {
+      const hx = m.side === 0 ? m.jx + (m.dx || 0) : m.jx + m.side * 22;
+      leaders += `<polyline points="${m.ex.toFixed(1)},${m.ey.toFixed(1)} ${m.jx.toFixed(1)},${m.ly.toFixed(1)} ${hx.toFixed(1)},${m.ly.toFixed(1)}" fill="none" stroke="#6e6878" stroke-width="1" opacity="0.85"/>` +
+        `<text x="${(hx + m.side * 5).toFixed(1)}" y="${(m.ly + 4).toFixed(1)}" text-anchor="${m.side === 0 ? 'middle' : (m.side > 0 ? 'start' : 'end')}" font-size="10.5" fill="#d0cbd8">${m.label}</text>`;
+    });
+  }
+  // 总计 + 图例（x 按新 W=420 调整右锚点）
   const totalY = cy + r + 34;
   let legend = `<text x="${cx}" y="${totalY}" text-anchor="middle" font-size="14" font-weight="700" fill="#e8e4ec">总计 ${fmtBar(total)}</text>`;
   shown.forEach((c, i) => {
     const pct = (c.sec / total * 100).toFixed(1).replace(/\.0$/, '');
-    const y = totalY + 24 + i * 27;
+    const y = totalY + 20 + i * 22;
     legend += `<text x="4" y="${y}" font-size="11" fill="#6e6878">${pct}%</text>
       <rect x="52" y="${y - 10}" width="12" height="12" rx="3" fill="${PIE_COLORS[i % PIE_COLORS.length]}"/>
       <text x="72" y="${y}" font-size="12.5" fill="#e8e4ec">${esc(c.label)}</text>
-      <text x="336" y="${y}" text-anchor="end" font-size="12" fill="#a8a0b8">${fmtBar(c.sec)}</text>`;
+      <text x="${W - 4}" y="${y}" text-anchor="end" font-size="12" fill="#a8a0b8">${fmtBar(c.sec)}</text>`;
   });
-  const H = totalY + 40 + shown.length * 27;
+  const H = totalY + 34 + shown.length * 22;
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">
     ${sectors}${labels}${leaders}${legend}
   </svg>`;
