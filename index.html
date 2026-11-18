@@ -2707,6 +2707,15 @@ function renderChart() {
 }
 function closeChartModal() { document.getElementById('chart-overlay').classList.remove('show'); }
 
+// 电脑端 ESC 收回弹窗（2026-11-18 TA 点单；物理键盘才有 ESC，手机天然不触发）
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Escape') return;
+  var ovs = document.querySelectorAll('.modal-overlay.show');
+  if (!ovs.length) return;
+  ovs.forEach(function(o) { o.classList.remove('show'); });
+  e.preventDefault();
+});
+
 // ====== 努力全景（学习热力图：全期总览，点格子跳当天统计；11-06 TA 点单删月视图）======
 // 与积分面板同款（TA 2026-09-30 拍板「和积分消耗一样简单明了」）：离散5档 + 按当前视图峰值线性四等分——
 // 峰值日独占最亮色一眼跳出；旧固定阈值版（<30分/<1时/<2时）长尾全挤同档，分位版/渐变版均废弃
