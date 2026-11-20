@@ -1334,6 +1334,23 @@ function toggleCheckin() {
   SYNC.flushNow();  // 11-11 iPad 分叉案：打卡改即时上云——2s 防抖 push 会被「打卡后秒切后台」的 PWA 冻结掐死（iPad 三天打卡全丢此通道：本地 70 云端 67）
   updateCheckinUI();
 }
+// 自动打卡（2026-11-20 TA 点单：学习时长满 3 分钟自动打卡防忘）
+// 只加不减：手动打卡不因时长不足被取消；今日口径=计时段（manual 覆盖优先）+进行中；触发即 flushNow 上云
+function autoCheckinIfDue() {
+  const t = today();
+  const checkins = getCheckins();
+  if (checkins.includes(t)) return false;
+  const ov = DB.get('manual_time', {}) || {};
+  const todaySec = (ov[t] !== undefined ? ov[t] * 60 : getTodaySegments().reduce((s, x) => s + x.duration, 0)) + liveElapsedSec();
+  if (todaySec < 180) return false;
+  checkins.push(t);
+  DB.set('checkins', checkins);
+  updateCheckinUI();
+  renderHeat();
+  SYNC.flushNow();
+  toast('⏱️ 学满 3 分钟，已自动打卡', 'success');
+  return true;
+}
 function updateCheckinUI() {
   const checkins = getCheckins();
   const isToday = checkins.includes(today());
@@ -1497,13 +1514,14 @@ function stopTimer() {
   updateTimerCount();
   updateStudyTotal();
   renderHeat(); // 今天的格子立即亮起来
+  autoCheckinIfDue(); // 停表落账即查：今日满 3 分钟自动打卡（2026-11-20）
   if (statTab === 'day') renderStats(); // 结束计时后底部统计立刻落账
 }
 function updateTimerDisplay() {
   if (!timerRunning || timerPaused) return; // 未计时/暂停中别动显示：暂停时表定格在暂停时刻
   const elapsed = liveElapsedSec();
   document.getElementById('timer-display').textContent = fmtTime(elapsed);
-  if (elapsed !== lastShownSec) { lastShownSec = elapsed; updateTimerCount(); updateStudyTotal(); if (statTab === 'day') renderStats(); } // 今日统计+总计学习时长实时同步
+  if (elapsed !== lastShownSec) { lastShownSec = elapsed; updateTimerCount(); updateStudyTotal(); if (statTab === 'day') renderStats(); autoCheckinIfDue(); } // 今日统计+总计学习时长实时同步；满3分钟自动打卡（11-20）
 }
 // 调时收纳面板（2026-10-05 v2：主界面只留一个入口按钮，档位藏二级面板防误触，替代连环 confirm）
 function toggleAdj() {
@@ -3083,7 +3101,7 @@ document.addEventListener('visibilitychange', async () => {
         Object.keys(CFG).forEach(k => delete CFG[k]);
         Object.assign(CFG, fresh);
       } catch (e) {}
-      try { renderTabs(); renderMotto(); renderTasks(); renderStats(); renderHeat(); renderMemos(); updateCheckinUI(); updateTimerCount(); updateStudyTotal(); drawWheel(); } catch (e) {}
+      try { renderTabs(); renderMotto(); renderTasks(); renderStats(); renderHeat(); renderMemos(); updateCheckinUI(); updateTimerCount(); updateStudyTotal(); drawWheel(); try { autoCheckinIfDue(); } catch (e) {} } catch (e) {}
       toast('☁️ 已同步后台修改 ' + n + ' 条');
       SYNC.pushAll();
     }
@@ -3144,7 +3162,7 @@ async function refreshApp(btn, silent) {
         Object.keys(CFG).forEach(k => delete CFG[k]);
         Object.assign(CFG, fresh);
       } catch (e) {}
-      try { renderTabs(); renderMotto(); renderTasks(); renderStats(); renderHeat(); renderMemos(); updateCheckinUI(); updateTimerCount(); updateStudyTotal(); drawWheel(); } catch (e) {}
+      try { renderTabs(); renderMotto(); renderTasks(); renderStats(); renderHeat(); renderMemos(); updateCheckinUI(); updateTimerCount(); updateStudyTotal(); drawWheel(); try { autoCheckinIfDue(); } catch (e) {} } catch (e) {}
       toast((silent ? '☁️ 已自动同步 ' : '🔄 已刷新：云端合并 ') + n + ' 条数据' + stamp);
     } else {
       if (!silent) toast('🔄 已刷新：本地即最新' + stamp);
@@ -3179,7 +3197,7 @@ document.addEventListener('visibilitychange', () => {
       Object.keys(CFG).forEach(k => delete CFG[k]);
       Object.assign(CFG, fresh);
     } catch (e) {}
-    try { renderTabs(); renderMotto(); renderTasks(); renderStats(); renderHeat(); renderMemos(); updateCheckinUI(); updateTimerCount(); updateStudyTotal(); drawWheel(); } catch (e) {}
+    try { renderTabs(); renderMotto(); renderTasks(); renderStats(); renderHeat(); renderMemos(); updateCheckinUI(); updateTimerCount(); updateStudyTotal(); drawWheel(); try { autoCheckinIfDue(); } catch (e) {} } catch (e) {}
     toast('☁️ 已从云端同步 ' + n + ' 条数据');
   }
   SYNC.pushAll(); // 拉完合并后本地⊇云端，全量推上去让历史数据也落地
