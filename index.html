@@ -759,6 +759,9 @@
     #panel-home > section { margin-bottom: 0; }
     #panel-home > section:nth-child(1) { grid-column: 1 / -1; }  /* 格言横幅 */
     /* nth-child(2)=打卡总览(左列) nth-child(3)=番茄计时(右列) 自然并排 */
+    /* 11-21 双列两卡等高：打卡(左)番茄(右)底边对齐——TA 报「右边不协调」（右卡矮 34px 底边错位，删空柱后显眼） */
+    #panel-home > section:nth-child(2), #panel-home > section:nth-child(3) { align-self: stretch; display: flex; }
+    #panel-home > section:nth-child(2) > .card, #panel-home > section:nth-child(3) > .card { width: 100%; }
     #panel-home > section:nth-child(4) { grid-column: 1 / -1; }  /* 学习数据统计全宽 */
     #panel-home > section:nth-child(5) { grid-column: 1 / -1; }  /* 图表生成入口全宽 */
     #panel-home > section:nth-child(6) { grid-column: 1 / -1; }  /* 努力全景(热力图)全宽 */
