@@ -1621,7 +1621,8 @@ function updateTimerCount() {
 }
 // 番茄卡填满（11-01）：本周 7 天条形图；11-03 TA 点单：删分段明细（学习统计日统计本来就有，重复），柱状图下直接今日时长大字体
 function renderTimerExtras() {
-  const week = getStatsData('week');
+  // 11-21 TA 点单「有空档」：周图只画到今天——未到的日子（周日晚等）空柱占位=布局空档；翻往历史周自然全显（历史日都 <= 今天）
+  const week = getStatsData('week').filter(d => d.date <= today());
   const t = today();
   let maxMin = 0, totalMin = 0;
   week.forEach(d => { const m = Math.round(d.total/60); totalMin += m; if (m > maxMin) maxMin = m; });
