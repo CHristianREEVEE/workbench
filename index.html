@@ -906,13 +906,7 @@
 </div>
 
 <div class="panel" id="panel-study">
-  <!-- 模块4：每日学习任务清单 -->
-  <section id="tasks-section">
-    <div class="card">
-      <div class="card-title" data-cfg-title="tasks">📚 每日学习任务</div>
-      <div id="tasks-list"></div>
-    </div>
-  </section>
+  <!-- 学习板块已清空（2026-11-25 TA 点单：想好放什么再弄）——原「每日学习任务」卡移除，数据保留在本地/云端 -->
   </div>
 <div class="panel" id="panel-memo">
   <!-- 模块6：备忘录 -->
@@ -1855,9 +1849,10 @@ function setMathToday(val) { DB.set('math_today_' + today(), val); }
 function getVocabToday() { return DB.get('vocab_today_' + today(), 0); }
 function setVocabToday(val) { DB.set('vocab_today_' + today(), val); }
 function renderTasks() {
+  const list = document.getElementById('tasks-list');
+  if (!list) return; // 11-25 学习板块清空后安全 no-op
   const done = getTasksDone();
   const counts = getTaskCounts();
-  const list = document.getElementById('tasks-list');
   let html = '';
   let idx = 0;
   taskGroups.forEach(g => {
