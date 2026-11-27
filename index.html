@@ -1170,6 +1170,7 @@ const SYNC = {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (k === 'wb_timer_state') continue;  // 11-11 timer_state 排除出对账推送：防陈旧端反向污染（pull 云端权威，操作走即时 flush 通道）
+      if (k === 'wb_manual_time') continue;  // 1126 补时键云端权威: 对账不回灌, 防数字取大复活已清键(仅用户操作通道可写)
       if (k.startsWith('wb_')) { try { payload[k.slice(3)] = JSON.parse(localStorage.getItem(k)); } catch (e) {} }
     }
     const cfgRaw = localStorage.getItem('workbench_config');
@@ -1183,7 +1184,7 @@ const SYNC = {
   },
   async pull() {                 // 启动时拉云端全量，合并进本地
     try {
-      const r = await fetch(this.url + 'all?k=' + this.key);
+      const r = await fetch(this.url + 'all?k=' + this.key, { cache: 'no-store' });  // 1126 禁缓存：防浏览器启发式缓存卡死对账（900分钟事故第二根因）
       if (r.status === 401 || r.status === 403) throw new Error('unauthorized');   // 2026-10-19：鉴权失败显式抛错，不再静默 return false 冒充「本地即最新」
       const j = await r.json();
       if (!j.ok || !j.data) return false;
@@ -1200,6 +1201,11 @@ const SYNC = {
         let lv; try { lv = lraw !== undefined ? JSON.parse(lraw) : undefined; } catch { lv = undefined; }
         const s_cv = JSON.stringify(cv), s_lv = JSON.stringify(lv);
         if (s_cv === s_lv) continue;
+        // manual_time(补时覆盖): 云端为准——管理员后台修正/清除直接生效, 本地脏值不再被取大规则护住(1126 900分钟事故根修)
+        if (k === 'manual_time' && cv && typeof cv === 'object') {
+          localStorage.setItem('wb_manual_time', JSON.stringify(cv));
+          changed++; continue;
+        }
         // checkins（打卡记录）特殊合并：云端为准——本地删掉的日期不再被并集复活（取消打卡从此生效）；
         // 仅保留本地独有且晚于云端最新日期的项（刚打卡还没来得及推云的场景不丢新卡）
         if (k === 'checkins' && Array.isArray(cv) && Array.isArray(lv)) {
@@ -1301,7 +1307,8 @@ document.getElementById('confirm-ok-btn').onclick = () => {
 function closeConfirm() { document.getElementById('confirm-overlay').classList.remove('show'); }
 
 // ====== Date helpers ======
-function today() { return new Date().toISOString().slice(0,10); }
+function dstr(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); } // 1126 本地日期串：UTC 版在 0-8 点会把今天算成昨天
+function today() { return dstr(new Date()); }
 function getDayOfWeek() { return new Date().getDay(); } // 0=Sun, 1=Mon, ..., 6=Sat
 function isMonday() { return getDayOfWeek() === 1; }
 function fmtTime(s) {
@@ -1373,7 +1380,7 @@ function updateCheckinUI() {
   }
   // Current streak: count backwards from today (or yesterday if not checked in today)
   const t = today();
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const yesterday = dstr(new Date(Date.now() - 86400000));
   if (checkins.includes(t)) {
     curStreak = tmpStreak; // if today checked in, current streak is the last run
   } else if (checkins.includes(yesterday)) {
@@ -1382,7 +1389,7 @@ function updateCheckinUI() {
     let checkDate = yesterday;
     while (checkins.includes(checkDate)) {
       curStreak++;
-      checkDate = new Date(new Date(checkDate) - 86400000).toISOString().slice(0, 10);
+      checkDate = dstr(new Date(new Date(checkDate) - 86400000));
     }
   } else {
     curStreak = 0;
@@ -2579,7 +2586,7 @@ function getChartDates() {
   if (statTab === 'day') {
     const d = new Date();
     d.setDate(d.getDate() + statsDayOffset);
-    dates = [d.toISOString().slice(0, 10)];
+    dates = [dstr(d)];
   } else if (statTab === 'week') {
     const baseDate = new Date(now);
     baseDate.setDate(now.getDate() + statsWeekOffset * 7);
@@ -2587,7 +2594,7 @@ function getChartDates() {
     for (let i = 1; i <= 7; i++) {
       const d = new Date(baseDate);
       d.setDate(baseDate.getDate() - baseDay + i);
-      dates.push(d.toISOString().slice(0, 10));
+      dates.push(dstr(d));
     }
   } else {
     const base = new Date(now.getFullYear(), now.getMonth() + statsMonthOffset, 1);
@@ -2757,6 +2764,17 @@ document.addEventListener('keydown', function(e) {
   e.preventDefault();
 });
 
+// 电脑端空格键唯一逻辑：暂停/继续计时（2026-11-27 TA 点单——焦点残留在按钮上时空格不再点按钮：翻页/开始/结束全让位）
+// capture 阶段抢先 + preventDefault 掐掉「聚焦按钮时空格=点击该按钮」的浏览器默认行为；输入框内空格仍是打字；未计时时空格无操作
+document.addEventListener('keydown', function(e) {
+  if (e.key !== ' ' || e.repeat) return;
+  var t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+  e.preventDefault();
+  if (typeof timerRunning === 'undefined' || !timerRunning) return;
+  togglePauseTimer();
+}, true);
+
 // ====== 努力全景（学习热力图：全期总览，点格子跳当天统计；11-06 TA 点单删月视图）======
 // 与积分面板同款（TA 2026-09-30 拍板「和积分消耗一样简单明了」）：离散5档 + 按当前视图峰值线性四等分——
 // 峰值日独占最亮色一眼跳出；旧固定阈值版（<30分/<1时/<2时）长尾全挤同档，分位版/渐变版均废弃
@@ -2853,7 +2871,7 @@ function getStatsData(period) {
   if (period === 'day') {
     const d = new Date();
     d.setDate(d.getDate() + statsDayOffset);
-    dates = [d.toISOString().slice(0,10)];
+    dates = [dstr(d)];
   } else if (period === 'week') {
     const day = now.getDay() || 7;
     const baseDate = new Date(now);
@@ -2862,7 +2880,7 @@ function getStatsData(period) {
     for (let i = 1; i <= 7; i++) {
       const d = new Date(baseDate);
       d.setDate(baseDate.getDate() - baseDay + i);
-      dates.push(d.toISOString().slice(0,10));
+      dates.push(dstr(d));
     }
   } else {
     const base = new Date(now.getFullYear(), now.getMonth() + statsMonthOffset, 1);
